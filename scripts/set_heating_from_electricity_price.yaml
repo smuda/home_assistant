@@ -1,0 +1,22 @@
+variables:
+  normal_temperature: 22
+sequence:
+  - action: climate.set_temperature
+    metadata: {}
+    data:
+      temperature: >-
+        {%- if states('sensor.nord_pool_se3_aktuellt_pris') | float < 0.5 %}
+        {{ normal_temperature + 2 }}
+        {%- elif states('sensor.nord_pool_se3_aktuellt_pris') | float < 1.0 %}
+        {{ normal_temperature }}
+        {%- elif states('sensor.nord_pool_se3_aktuellt_pris') | float < 2.0 %}
+        {{ normal_temperature - 2 }}
+        {%- else %}
+        {{ normal_temperature - 4 }}
+        {%- endif %}
+    target:
+      entity_id:
+        - climate.daikinap24848
+fields: {}
+alias: Set heating temperature from electricity price
+description: ""

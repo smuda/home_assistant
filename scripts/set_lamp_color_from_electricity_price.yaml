@@ -1,0 +1,43 @@
+variables:
+  green:
+    - 0
+    - 255
+    - 0
+    - 15
+  yellow:
+    - 236
+    - 255
+    - 0
+    - 0
+  orange:
+    - 255
+    - 125
+    - 0
+    - 0
+  red:
+    - 255
+    - 0
+    - 0
+    - 0
+sequence:
+  - action: light.turn_on
+    metadata: {}
+    data:
+      brightness_pct: 30
+      rgbw_color: >-
+        {%- if states('sensor.nord_pool_se3_aktuellt_pris') | float < 0.5 %}
+        {{ green }}
+        {%- elif states('sensor.nord_pool_se3_aktuellt_pris') | float < 1.0 %}
+        {{ yellow }}
+        {%- elif states('sensor.nord_pool_se3_aktuellt_pris') | float < 2.0 %}
+        {{ orange }}
+        {%- else %}
+        {{ red }}
+        {%- endif %}
+    target:
+      entity_id:
+        - light.wiz_kitchen_electricity_cost_lamp
+        - light.wiz_basement_electricity_cost_lamp
+fields: {}
+alias: Set lamp color from electricity price
+description: ""
