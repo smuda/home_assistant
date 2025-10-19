@@ -1,0 +1,7 @@
+scrape_configs:
+  - job_name: homeassistant
+    scrape_interval: 600s
+    bearer_token_file: /victoria-metrics-config/homeassistant-token
+    static_configs:
+      - targets:
+          - http://homeassistant.local:8123/api/prometheus

@@ -1,0 +1,5 @@
+env-secrets
+vmconfig/homeassistant-token
+vmconfig-lts/homeassistant-token
+vmdata
+vmdata-lts

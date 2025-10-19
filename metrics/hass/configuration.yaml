@@ -1,0 +1,23 @@
+prometheus:
+  filter:
+    include_domains:
+      - climate
+      - humidifier
+    include_entities:
+      # Nordpool prices
+      - sensor.nord_pool_se3_aktuellt_pris
+      # Electric current P1 import
+      - sensor.p1_meter_strom_fas_*
+      # Energy P1 import
+      - sensor.p1_meter_total_elimport
+      # Energy consumption
+      - sensor.daikinap24848_energiforbrukning
+      - sensor.*_energi
+      - sensor.*_energi_*
+      # Dehumidifiers - Storage outside
+      - fan.avfuktare
+      # Dehumidifiers - Otto Storage inside
+      - binary_sensor.otto_dehumidifier_tank_full
+      - sensor.otto_dehumidifier_luftfuktighet
+    exclude_entities:
+      - homeassistant_state_change_total
