@@ -1,4 +1,5 @@
 env-secrets
+grafana-data
 vmconfig/homeassistant-token
 vmconfig-lts/homeassistant-token
 vmdata
