@@ -31,3 +31,14 @@ vm-lts-docker:
   		-storageDataPath=/victoria-metrics-data \
   		-promscrape.config=/victoria-metrics-config/scrape.yaml \
 		-retentionPeriod=3y
+
+.PHONY: grafana
+grafana:
+	mkdir -p grafana-data
+	docker ps --filter name=grafana --filter status=running -aq | xargs docker stop
+	docker ps -a --filter name=grafana --filter status=exited -aq | xargs docker rm
+	docker run -d --name=grafana \
+ 		-p 3000:3000 \
+ 		-v $(PWD)/grafana-data:/var/lib/grafana \
+ 		-v $(PWD)/grafana/provisioning/:/etc/grafana/provisioning \
+ 		grafana/grafana
