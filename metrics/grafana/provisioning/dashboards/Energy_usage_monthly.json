@@ -1,0 +1,169 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "kwatth"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "increase(homeassistant_sensor_energy_kwh{entity=\"sensor.p1_meter_total_elimport\"} [$__range])",
+          "instant": true,
+          "legendFormat": "{{friendly_name}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Energy kWh",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "kwatth"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "id": 3,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
+          },
+          "editorMode": "code",
+          "expr": "sort_desc(increase(homeassistant_sensor_energy_kwh{entity!=\"sensor.p1_meter_total_elimport\",entity!=\"sensor.zag064494_energiforbrukning_denna_laddningen\",entity!~\"sensor.zag064494_.*\",entity!=\"sensor.water_heater_meter_energy_returned\",entity!=\"sensor.shelly3em63g3_e4b063f32810_energy_returned\",entity!=\"sensor.shelly3em63g3_e4b063f32810_energy\",entity!=\"sensor.daikinap24848_energiforbrukning\",entity!~\".*climatecontrol.*\"} [$__range]) > 1 or increase(homeassistant_sensor_energy_kwh{entity=\"sensor.zag064494_forbrukad_energi\"} [$__range]) > 1 or label_replace(sum(increase(homeassistant_sensor_energy_kwh{entity=~\"sensor.daikinap24848_nere_climatecontrol_arlig_energiforbrukning_for_(varme|kyla)\"} [$__range])), \"friendly_name\", \"DaikinAP24848 nere Energiförbrukning\", \"\", \"\") > 1 or label_replace(sum(increase(homeassistant_sensor_energy_kwh{entity=~\"sensor.daikinap42080_uppe_climatecontrol_arlig_energiforbrukning_for_(varme|kyla)\"} [$__range])), \"friendly_name\", \"DaikinAP42080 uppe Energiförbrukning\", \"\", \"\") > 1)",
+          "instant": true,
+          "legendFormat": "{{friendly_name}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Usage kWh",
+      "type": "barchart"
+    }
+  ],
+  "preload": false,
+  "refresh": "",
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "2026-02-01T00:00:00.000Z",
+    "to": "2026-02-28T23:59:59.000Z"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Energy Usage Monthly",
+  "uid": "ad68vjg-monthly"
+}
