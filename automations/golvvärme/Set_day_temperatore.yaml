@@ -1,0 +1,19 @@
+alias: Set day temperatore
+description: ""
+triggers:
+  - trigger: time
+    at: "06:00:00"
+    weekday:
+      - mon
+      - tue
+      - wed
+      - thu
+      - fri
+conditions: []
+actions:
+  - action: climate.set_temperature
+    target:
+      entity_id: climate.golvvarmen
+    data:
+      temperature: 20
+mode: single
