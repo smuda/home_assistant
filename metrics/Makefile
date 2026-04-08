@@ -14,7 +14,7 @@ vm-docker:
   		victoriametrics/victoria-metrics:latest \
   		-storageDataPath=/victoria-metrics-data \
   		-promscrape.config=/victoria-metrics-config/scrape.yaml \
-		-retentionPeriod=2
+		-retentionPeriod=1y
 
 .PHONY: vm-lts-docker
 vm-lts-docker:
