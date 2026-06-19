@@ -1,0 +1,155 @@
+# Zaptec dynamic fuse protection (deadband + rate-limited)
+# Changes the charge current RARELY to avoid the vehicle aborting
+# the session. Zaptec recommends updating no more than once every
+# 15 minutes; frequent changes can make the car (e.g. VW ID.4) drop
+# the charge. A near-fuse reading still triggers an immediate safety
+# cut. As a LAST RESORT, when even the 6 A minimum will not fit under
+# the fuse, it stops the car (a controlled stop is less harmful than
+# tripping the whole-house main fuse) and resumes when load drops.
+# Requires helper: input_boolean.zaptec_fuse_paused. See README.md.
+alias: Zaptec dynamic fuse protection (charge current)
+description: >-
+  Limits Zaptec max charge current so no phase exceeds the main
+  fuse. Uses a deadband and a minimum interval between changes so
+  current is adjusted infrequently (vehicles abort on too-frequent
+  changes). A phase nearing the fuse forces an immediate reduction.
+  Normally floors at 6 A rather than stopping; only when even 6 A
+  would still breach the fuse does it stop the car, resuming
+  automatically once household load falls.
+mode: single
+max_exceeded: silent
+
+triggers:
+  - trigger: time_pattern
+    minutes: "/1"
+  - trigger: state
+    entity_id: sensor.zag064494_laddstatus
+  # Wake fast on a raw surge; the decision logic below uses the
+  # filtered values, so a spurious spike here cannot cause a stop.
+  - trigger: numeric_state
+    entity_id:
+      - sensor.p1_meter_strom_fas_1
+      - sensor.p1_meter_strom_fas_2
+      - sensor.p1_meter_strom_fas_3
+    above: 23
+
+conditions:
+  # Run while charging/requesting, OR while we hold a fuse-pause
+  # (so we can evaluate resume even though the car is not charging).
+  - condition: or
+    conditions:
+      - condition: state
+        entity_id: sensor.zag064494_laddstatus
+        state:
+          - connected_charging
+          - connected_requesting
+      - condition: state
+        entity_id: input_boolean.zaptec_fuse_paused
+        state: "on"
+
+variables:
+  fuse: 25 # main fuse, amps per phase
+  margin: 3 # safety headroom, amps
+  deadband: 3 # min amps difference before changing
+  min_interval: 900 # min seconds between normal changes (>= 15 min)
+  emergency_phase: 24 # any phase at/above this -> immediate cut
+  resume_hyst: 2 # extra amps load must fall before resuming
+  ev_min: 6 # Zaptec Go minimum charge current
+  ev_max: 16 # installer hardware cap
+  max_age: 60 # P1 data older than this (s) is treated as a dropout
+  failsafe_other: 18 # assumed other-phase load (A) when P1 is dead
+  c1: "{{ states('sensor.zag064494_strom_fas_1')|float(0) }}"
+  c2: "{{ states('sensor.zag064494_strom_fas_2')|float(0) }}"
+  c3: "{{ states('sensor.zag064494_strom_fas_3')|float(0) }}"
+  cap: "{{ fuse - margin }}"
+  # P1 liveness from the RAW meter. Use last_reported (advances on
+  # every meter push, even an unchanged value) so a steady load is
+  # not mistaken for a dead feed. The filtered sensor can sit
+  # numeric-but-frozen if its source dies, so it is never trusted on
+  # its own.
+  live1: "{{ states('sensor.p1_meter_strom_fas_1') not in ['unknown','unavailable'] and (now() - states.sensor.p1_meter_strom_fas_1.last_reported).total_seconds() < max_age }}"
+  live2: "{{ states('sensor.p1_meter_strom_fas_2') not in ['unknown','unavailable'] and (now() - states.sensor.p1_meter_strom_fas_2.last_reported).total_seconds() < max_age }}"
+  live3: "{{ states('sensor.p1_meter_strom_fas_3') not in ['unknown','unavailable'] and (now() - states.sensor.p1_meter_strom_fas_3.last_reported).total_seconds() < max_age }}"
+  # Decision value per phase: filtered (spike-smoothed) when present,
+  # else the raw meter.
+  v1: "{{ states('sensor.p1_fas_1_filtrerad') if states('sensor.p1_fas_1_filtrerad') not in ['unknown','unavailable'] else states('sensor.p1_meter_strom_fas_1') }}"
+  v2: "{{ states('sensor.p1_fas_2_filtrerad') if states('sensor.p1_fas_2_filtrerad') not in ['unknown','unavailable'] else states('sensor.p1_meter_strom_fas_2') }}"
+  v3: "{{ states('sensor.p1_fas_3_filtrerad') if states('sensor.p1_fas_3_filtrerad') not in ['unknown','unavailable'] else states('sensor.p1_meter_strom_fas_3') }}"
+  # Other (non-car) load per phase. When the P1 feed is dead, fail
+  # SAFE to failsafe_other so the car floors to 6 A — never read a
+  # dropout as zero load, which would let it allow the full 16 A.
+  o1: "{{ [ v1|float(0) - c1, 0 ]|max if live1 else failsafe_other }}"
+  o2: "{{ [ v2|float(0) - c2, 0 ]|max if live2 else failsafe_other }}"
+  o3: "{{ [ v3|float(0) - c3, 0 ]|max if live3 else failsafe_other }}"
+  other_max: "{{ [o1, o2, o3]|max }}"
+  # Lowest per-phase headroom against the (fuse - margin) cap.
+  headroom: "{{ [ cap - o1, cap - o2, cap - o3 ]|min }}"
+  raw_target: "{{ [ [ headroom|int(0), ev_max ]|min, ev_min ]|max }}"
+  current_max: "{{ states('number.zag064494_max_laddstrom')|int(0) }}"
+  delta: "{{ raw_target - current_max }}"
+  secs_since: >-
+    {{ (now() - states.number.zag064494_max_laddstrom.last_changed)
+       .total_seconds() }}
+  # Real phase total (other + car) for the near-fuse emergency cut.
+  ptot_max: "{{ [ o1 + c1, o2 + c2, o3 + c3 ]|max }}"
+  emergency: "{{ ptot_max >= emergency_phase }}"
+  status: "{{ states('sensor.zag064494_laddstatus') }}"
+  is_paused: "{{ is_state('input_boolean.zaptec_fuse_paused', 'on') }}"
+  charging: "{{ status in ['connected_charging', 'connected_requesting'] }}"
+  # Even the 6 A minimum would push a phase to/over the fuse: the
+  # car cannot help, so a controlled stop beats a tripped main fuse.
+  must_stop: "{{ other_max + ev_min >= fuse }}"
+  # Resume only after load has fallen well below that (hysteresis).
+  can_resume: "{{ other_max + ev_min <= fuse - resume_hyst }}"
+  # Write a new max only on a meaningful change after the interval,
+  # OR as an immediate reduction when a phase nears the fuse.
+  do_write: >-
+    {{ ((delta | abs) >= deadband and secs_since >= min_interval)
+       or (delta <= -1 and emergency) }}
+
+actions:
+  - choose:
+      # Clear a stale pause flag once the car is unplugged.
+      - conditions:
+          - condition: template
+            value_template: "{{ is_paused and status == 'disconnected' }}"
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.zaptec_fuse_paused
+
+      # Resume: we paused for the fuse and load has now dropped.
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ is_paused and can_resume and status != 'disconnected' }}
+        sequence:
+          - action: button.press
+            target:
+              entity_id: button.zag064494_ateruppta_laddning
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.zaptec_fuse_paused
+
+      # Last resort: even 6 A will not fit under the fuse -> stop.
+      - conditions:
+          - condition: template
+            value_template: "{{ not is_paused and charging and must_stop }}"
+        sequence:
+          - action: button.press
+            target:
+              entity_id: button.zag064494_stoppa_laddning
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.zaptec_fuse_paused
+
+      # Normal path: adjust max charge current within the fuse.
+      - conditions:
+          - condition: template
+            value_template: "{{ not is_paused and charging and do_write }}"
+        sequence:
+          - action: number.set_value
+            target:
+              entity_id: number.zag064494_max_laddstrom
+            data:
+              value: "{{ raw_target }}"

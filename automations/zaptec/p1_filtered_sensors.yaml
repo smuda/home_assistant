@@ -1,0 +1,56 @@
+# Filtered P1 phase currents for the Zaptec fuse-protection automation
+# =====================================================================
+# These are SENSOR definitions, NOT an automation. They cannot be
+# pasted into the automation editor. Add them to configuration.yaml
+# under the top-level `sensor:` key (or via a !include / package),
+# then RESTART Home Assistant (a plain automation reload is not
+# enough — new platform sensors need a restart).
+#
+# Why: the fuse-protection automation's last-resort stop and its
+# 24 A emergency cut react to the meter reading. A single transient
+# spike from the P1 meter (e.g. a one-sample 41 A blip while the car
+# only draws 15 A) could otherwise trigger a false stop — the very
+# abort we are trying to avoid.
+#
+# A short moving average dilutes such a one-sample spike below the
+# stop/emergency thresholds while still tracking a real, sustained
+# load (only ~10 s late on average, which the fuse's time-current
+# curve and the automation's margin tolerate). We deliberately do
+# NOT use the `outlier` filter: it can reject a *genuine* large load
+# step (> its radius) indefinitely, which would hide real load — a
+# fail-unsafe blind spot for a fuse guard.
+#
+# The automation reads these as sensor.p1_fas_{1,2,3}_filtrerad, but
+# it judges the feed's liveness from the RAW meter's last_updated
+# (the raw value jitters every reading; a filtered sensor can sit
+# numeric-but-frozen if its source dies). If the raw feed is stale or
+# unavailable the automation fails SAFE (floors the car), so a meter
+# dropout never reads as zero load.
+#
+# Tuning: lengthen window_size for stronger spike rejection (more
+# lag); shorten it for a faster but noisier response.
+
+sensor:
+  - platform: filter
+    name: "P1 fas 1 filtrerad"
+    unique_id: p1_fas_1_filtrerad
+    entity_id: sensor.p1_meter_strom_fas_1
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:00:20"
+
+  - platform: filter
+    name: "P1 fas 2 filtrerad"
+    unique_id: p1_fas_2_filtrerad
+    entity_id: sensor.p1_meter_strom_fas_2
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:00:20"
+
+  - platform: filter
+    name: "P1 fas 3 filtrerad"
+    unique_id: p1_fas_3_filtrerad
+    entity_id: sensor.p1_meter_strom_fas_3
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:00:20"
