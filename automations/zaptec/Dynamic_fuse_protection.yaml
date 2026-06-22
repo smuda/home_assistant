@@ -6,6 +6,13 @@
 # cut. As a LAST RESORT, when even the 6 A minimum will not fit under
 # the fuse, it stops the car (a controlled stop is less harmful than
 # tripping the whole-house main fuse) and resumes when load drops.
+# IMPORTANT: only acts while actually charging (connected_charging).
+# It never writes the charge current while the car is disconnected or
+# merely waiting (connected_requesting), because writing the charger
+# current overrides Zaptec's load balancer and suspends Eco Mode -
+# touching it while Eco is waiting makes the car charge immediately
+# instead of at the cheap night hours. Let Eco decide WHEN; this only
+# limits the current once a charge is under way.
 # Requires helper: input_boolean.zaptec_fuse_paused. See README.md.
 alias: Zaptec dynamic fuse protection (charge current)
 description: >-
@@ -15,7 +22,8 @@ description: >-
   changes). A phase nearing the fuse forces an immediate reduction.
   Normally floors at 6 A rather than stopping; only when even 6 A
   would still breach the fuse does it stop the car, resuming
-  automatically once household load falls.
+  automatically once household load falls. Acts only while charging
+  so it does not disturb Zaptec Eco Mode scheduling.
 mode: single
 max_exceeded: silent
 
@@ -34,18 +42,11 @@ triggers:
     above: 23
 
 conditions:
-  # Run while charging/requesting, OR while we hold a fuse-pause
-  # (so we can evaluate resume even though the car is not charging).
-  - condition: or
-    conditions:
-      - condition: state
-        entity_id: sensor.zag064494_laddstatus
-        state:
-          - connected_charging
-          - connected_requesting
-      - condition: state
-        entity_id: input_boolean.zaptec_fuse_paused
-        state: "on"
+  # Run only while actually charging, or while we hold a fuse-pause
+  # (so we can evaluate resume). Never while disconnected or merely
+  # requesting - touching the charger then would suspend Eco Mode.
+  - condition: template
+    value_template: "{{ charging or is_paused }}"
 
 variables:
   fuse: 25 # main fuse, amps per phase
@@ -95,7 +96,9 @@ variables:
   emergency: "{{ ptot_max >= emergency_phase }}"
   status: "{{ states('sensor.zag064494_laddstatus') }}"
   is_paused: "{{ is_state('input_boolean.zaptec_fuse_paused', 'on') }}"
-  charging: "{{ status in ['connected_charging', 'connected_requesting'] }}"
+  # Only "actually charging" - NOT connected_requesting. Acting during
+  # requesting (Eco waiting) would suspend Eco and start charging now.
+  charging: "{{ status == 'connected_charging' }}"
   # Even the 6 A minimum would push a phase to/over the fuse: the
   # car cannot help, so a controlled stop beats a tripped main fuse.
   must_stop: "{{ other_max + ev_min >= fuse }}"
@@ -109,7 +112,9 @@ variables:
 
 actions:
   - choose:
-      # Clear a stale pause flag once the car is unplugged.
+      # Clear a stale pause flag once the car is unplugged. We do NOT
+      # touch the charge current while disconnected (that would
+      # suspend Eco Mode for the next session).
       - conditions:
           - condition: template
             value_template: "{{ is_paused and status == 'disconnected' }}"

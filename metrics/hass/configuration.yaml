@@ -10,6 +10,12 @@ prometheus:
       - sensor.p1_meter_strom_fas_*
       # Energy P1 import
       - sensor.p1_meter_total_elimport
+      # Zaptec EV charger - for the charging dashboard
+      - sensor.zag064494_strom_fas_*             # actual current per phase
+      - sensor.zag064494_tilldelad_laddstrom     # allocated current
+      - number.zag064494_max_laddstrom           # configured max (control output)
+      - sensor.zag064494_laddeffekt              # charging power
+      - sensor.zag064494_laddat_denna_sessionen  # energy this session
       # Energy consumption
       - sensor.daikinap24848_energiforbrukning
       - sensor.*_energi
