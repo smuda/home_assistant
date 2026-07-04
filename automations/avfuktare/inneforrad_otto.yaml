@@ -1,0 +1,35 @@
+# Instans: Otto i inneförrådet (har både Shelly-plugg och Tuya).
+# Använder blueprinten tank_full_notify.blueprint.yaml.
+#
+# Trösklarna är satta på en VERIFIERAD full-cykel (2026-07-04):
+# avfuktar ~234 W, full = 0 W platt i ~3 h, tömd åter ~234 W.
+# Effektsignaturen är primär (lokal, alltid tillgänglig); Tuyas
+# tank_full är på som komplement men fyrar bara när Tuya är uppe
+# (den var unavailable under hela full-cykeln). Prisvillkoret hindrar
+# falsklarm när prisstyrningen stänger av enheten vid dyr el.
+# Påminner var 6:e timme så länge tanken är full.
+alias: Avfuktare inneförråd full - notis
+description: >-
+  Larmar när Otto i inneförrådet troligen är full: Shelly-effekten
+  har fallit till ~0 W ihållande medan enheten borde avfukta (~234 W
+  igång). Tuyas tank_full som komplement när den är tillgänglig.
+use_blueprint:
+  path: smuda/tank_full_notify.blueprint.yaml
+  input:
+    name: Avfuktare inneförråd
+    power_sensor: sensor.shellyplugsg3_e4b063f90d0c_effekt
+    plug_switch: switch.shellyplugsg3_e4b063f90d0c
+    full_power_max: 10
+    low_duration:
+      hours: 0
+      minutes: 30
+      seconds: 0
+    running_power_min: 100
+    use_price_gate: true
+    price_sensor: sensor.nord_pool_se3_aktuellt_pris
+    price_off_above: 1.0
+    use_tank_full_sensor: true
+    tank_full_sensor: binary_sensor.otto_dehumidifier_tank_full
+    notify_service: notify.mobile_app_johns_iphone_13
+    reminder_hours: 6
+    notify_when_emptied: false

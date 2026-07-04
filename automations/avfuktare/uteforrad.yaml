@@ -1,0 +1,40 @@
+# Instans: avfuktaren i uteförrådet - FÖRBEREDD, INTE AKTIV.
+# =========================================================
+# Den här enheten (fan.avfuktare / humidifier.avfuktare) saknar idag
+# både effektmätare och tank_full-sensor. När du sätter en Shelly-
+# plugg på den:
+#
+#  1. Hitta den nya pluggens entiteter under Inställningar ->
+#     Enheter -> Shelly. De heter något i stil med
+#     sensor.shellyplugsg3_XXXX_effekt och switch.shellyplugsg3_XXXX.
+#  2. Byt ut XXXX nedan mot de riktiga id:na.
+#  3. Ta bort den här kommentarsramen så YAML:en blir aktiv.
+#
+# use_tank_full_sensor är false - den här enheten har ingen Tuya-
+# sensor, så detektionen vilar helt på effektsignaturen. Verifiera
+# full_power_max mot en riktig full-cykel på just den enheten
+# (kompressoreffekten kan skilja sig från Ottos).
+
+# alias: Avfuktare uteförråd full - notis
+# description: >-
+#   Larmar när avfuktaren i uteförrådet troligen är full, sett på
+#   Shelly-effekten. Ingen Tuya-sensor på den här enheten.
+# use_blueprint:
+#   path: avfuktare/tank_full_notify.blueprint.yaml
+#   input:
+#     name: Avfuktare uteförråd
+#     power_sensor: sensor.shellyplugsg3_XXXX_effekt
+#     plug_switch: switch.shellyplugsg3_XXXX
+#     full_power_max: 10
+#     low_duration:
+#       hours: 0
+#       minutes: 30
+#       seconds: 0
+#     running_power_min: 100
+#     use_price_gate: true
+#     price_sensor: sensor.nord_pool_se3_aktuellt_pris
+#     price_off_above: 1.0
+#     use_tank_full_sensor: false
+#     notify_service: notify.mobile_app_johns_iphone_13
+#     reminder_hours: 6
+#     notify_when_emptied: false

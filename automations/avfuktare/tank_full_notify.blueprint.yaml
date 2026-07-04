@@ -1,0 +1,284 @@
+# Avfuktare full - notis via effektsignatur (Shelly) + valfri Tuya
+# =================================================================
+# Blueprint. Skapar EN automation per avfuktare.
+#
+# VERIFIERAD SIGNATUR (Otto, riktig full-cykel 2026-07-04):
+#   avfuktar : ~234 W, mycket stabilt
+#   FULL     : 0 W platt i ~3 h (kompressorn stoppad, enheten väntar
+#              på tömning) - pluggen fortfarande PÅ
+#   tömd     : åter ~233 W när tanken tömts
+# En kompressoravfuktare stannar alltså HELT (~0 W) när tanken är
+# full, inte på fläktnivå. Det är den platån vi larmar på: effekten
+# har legat under en låg tröskel tillräckligt länge medan enheten
+# borde avfukta.
+#
+# Att skilja 0 W-full från andra 0 W-lägen:
+#   - Urdragen plugg      -> switch = off. Villkoret "plugg på" tar bort det.
+#   - Prisavstängd        -> prisstyrningen (scripts/set_dehumidify_
+#     from_electricity_price) stänger av när elpriset når 1.0 kr. Då är
+#     0 W avsiktligt. Prisvillkoret nedan larmar bara när priset är
+#     LÅGT, dvs när enheten borde vara igång. (Verifierat: under den
+#     riktiga full-cykeln var priset 0.11-0.14 kr -> larmar korrekt.)
+#   - Nådd målfukt        -> stannar också kompressorn, men återupptar
+#     när fukten stiger. Skiljs på varaktighet (low_duration).
+#
+# Tuya (Otto) har dessutom binary_sensor.*_tank_full. Den är rätt
+# signal NÄR den fungerar, men har stått `unavailable` i veckor
+# (molnberoende - den var otillgänglig även under full-cykeln ovan).
+# Därför: effekten är primär, Tuya bara ett komplement. Enheter utan
+# Tuya sätter use_tank_full_sensor: false.
+
+blueprint:
+  name: Avfuktare full - notis (effekt + valfri Tuya)
+  description: >-
+    Larmar när en avfuktare troligen är full: Shelly-effekten har
+    fallit till ~0 W ihållande medan enheten borde avfukta (pluggen
+    på, elpriset lågt). Tuyas tank_full används som komplement när
+    den finns. En instans per enhet.
+  domain: automation
+  input:
+    name:
+      name: Namn på avfuktaren
+      description: Visas i notisen, t.ex. "Avfuktare inneförråd".
+      default: Avfuktaren
+      selector:
+        text:
+    power_sensor:
+      name: Effektsensor (Shelly)
+      description: Shelly-pluggens effektsensor i watt.
+      selector:
+        entity:
+          domain: sensor
+          device_class: power
+    plug_switch:
+      name: Shelly-strömbrytare
+      description: >-
+        Shelly-pluggens switch. Larmet kräver att den är på (annars
+        är 0 W bara en urdragen plugg, inte en full tank).
+      selector:
+        entity:
+          domain: switch
+    full_power_max:
+      name: Effekttröskel för "stoppad" (W)
+      description: >-
+        Effekt VID ELLER UNDER detta räknas som "kompressorn stoppad"
+        = kandidat för full. Full-läget är ~0 W, så låt detta ligga
+        väl under avfuktningseffekten (~234 W). 10 W ger marginal.
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: W
+          mode: box
+    low_duration:
+      name: Varaktighet under tröskeln
+      description: >-
+        Hur länge effekten ska ha legat under tröskeln innan larm.
+        Längre = färre falsklarm från korta pauser, men senare larm.
+        Full-platån varade ~3 h, så 30 min är väl tilltaget.
+      default:
+        hours: 0
+        minutes: 30
+        seconds: 0
+      selector:
+        duration:
+    running_power_min:
+      name: Effekttröskel för "igång igen" (W)
+      description: >-
+        Effekt ÖVER detta betyder att kompressorn går igen (tanken
+        tömd). Används för valfri "tömd"-notis. ~234 W när den kör.
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 300
+          unit_of_measurement: W
+          mode: box
+    use_price_gate:
+      name: Använd prisvillkor
+      description: >-
+        Larma bara när elpriset är lågt (enheten ska vara igång).
+        Undviker falsklarm när prisstyrningen avsiktligt stängt av
+        enheten. Stäng av för enheter utan prisstyrning.
+      default: true
+      selector:
+        boolean:
+    price_sensor:
+      name: Elpris-sensor
+      description: Används bara om prisvillkoret är på.
+      default: sensor.nord_pool_se3_aktuellt_pris
+      selector:
+        entity:
+          domain: sensor
+    price_off_above:
+      name: Pris då enheten stängs av (kr/kWh)
+      description: >-
+        Samma tröskel som prisstyrningen. Vid eller över detta antas
+        0 W vara avsiktlig prisavstängning, inte full.
+      default: 1.0
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 0.1
+          unit_of_measurement: kr/kWh
+          mode: box
+    use_tank_full_sensor:
+      name: Använd Tuya tank_full också
+      description: >-
+        Slå på för enheter (Otto) som har en egen tank_full-sensor.
+        Ger direktlarm när Tuya fungerar. Stäng av för enheter utan.
+      default: false
+      selector:
+        boolean:
+    tank_full_sensor:
+      name: Tuya tank_full-sensor
+      description: >-
+        Används bara om ovanstående är på. Lämna som är för enheter
+        utan Tuya - värdet ignoreras då.
+      default: binary_sensor.otto_dehumidifier_tank_full
+      selector:
+        entity:
+          domain: binary_sensor
+    notify_service:
+      name: Notistjänst
+      description: Tjänst att skicka notisen till, t.ex. din telefon.
+      default: notify.mobile_app_johns_iphone_13
+      selector:
+        text:
+    reminder_hours:
+      name: Påminnelse-intervall (timmar)
+      description: >-
+        Upprepa notisen så länge tanken är full. 0 = påminn inte,
+        larma bara en gång per full-tillfälle.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 48
+          unit_of_measurement: h
+          mode: box
+    notify_when_emptied:
+      name: Notis när tömd
+      description: Skicka även en notis när effekten återgår till normal.
+      default: false
+      selector:
+        boolean:
+
+# Larma snabbt om Tuya säger full; annars när effekten legat lågt
+# tillräckligt länge. `mode: single` så påminnelse-loopen får gå
+# klart utan att startas om av varje effektjitter.
+mode: single
+max_exceeded: silent
+
+variables:
+  v_name: !input name
+  v_power_sensor: !input power_sensor
+  v_plug_switch: !input plug_switch
+  v_full_power_max: !input full_power_max
+  v_running_power_min: !input running_power_min
+  v_use_price_gate: !input use_price_gate
+  v_price_sensor: !input price_sensor
+  v_price_off_above: !input price_off_above
+  v_use_tuya: !input use_tank_full_sensor
+  v_tank_full_sensor: !input tank_full_sensor
+  v_reminder_hours: !input reminder_hours
+  v_notify_when_emptied: !input notify_when_emptied
+
+triggers:
+  # Effekt-vägen: effekten har legat vid/under tröskeln oavbrutet
+  # under hela low_duration -> kompressorn stoppad -> troligen full.
+  - trigger: numeric_state
+    entity_id: !input power_sensor
+    below: !input full_power_max
+    for: !input low_duration
+    id: power_low
+  # Tuya-vägen: direktlarm när tank_full slår till (om aktiverad och
+  # Tuya råkar vara uppe). Disablad trigger validerar men fyrar inte.
+  - trigger: state
+    entity_id: !input tank_full_sensor
+    to: "on"
+    id: tuya_full
+    enabled: !input use_tank_full_sensor
+
+conditions:
+  # Pluggen måste vara på - annars är låg effekt bara en urdragen
+  # eller frånslagen plugg, inte en full tank.
+  - condition: state
+    entity_id: !input plug_switch
+    state: "on"
+  # Prisvillkor: larma bara när priset är LÅGT (enheten ska vara
+  # igång). Vid högt pris är 0 W avsiktlig prisavstängning. Hoppas
+  # över om use_price_gate är av. Vid trigger-id tuya_full struntar vi
+  # i priset (Tuya vet faktiskt att den är full).
+  - condition: template
+    value_template: >-
+      {{ trigger.id == 'tuya_full'
+         or not v_use_price_gate
+         or (states(v_price_sensor) | float(0) < v_price_off_above | float) }}
+
+actions:
+  - variables:
+      # Live-mall som återanvänds i påminnelse-loopen. Full om Tuya
+      # säger full (när den används) ELLER effekten är vid/under
+      # tröskeln medan pluggen är på.
+      is_full_tpl: >-
+        {% set p = states(v_power_sensor) | float(999) %}
+        {% set tuya = v_use_tuya and is_state(v_tank_full_sensor, 'on') %}
+        {{ tuya or (is_state(v_plug_switch, 'on')
+                    and p <= v_full_power_max | float) }}
+  # Första larmet.
+  - action: !input notify_service
+    data:
+      title: "Avfuktare full"
+      message: >-
+        {{ v_name }} verkar vara full ({{ states(v_power_sensor) }} W).
+        Töm tanken så den kan fortsätta avfukta.
+      data:
+        tag: "avfuktare_full_{{ v_power_sensor }}"
+        group: "avfuktare"
+  # Valfri påminnelse-loop: påminn var reminder_hours så länge tanken
+  # fortfarande är full. Hoppas över helt om reminder_hours = 0.
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ v_reminder_hours | float(0) > 0 }}"
+        sequence:
+          - repeat:
+              while:
+                - condition: template
+                  value_template: "{{ is_full_tpl | bool }}"
+              sequence:
+                - delay: "{{ (v_reminder_hours | float(0) * 3600) | int }}"
+                # Kontrollera igen EFTER väntan - kan ha tömts under tiden.
+                - condition: template
+                  value_template: "{{ is_full_tpl | bool }}"
+                - action: !input notify_service
+                  data:
+                    title: "Avfuktare fortfarande full"
+                    message: >-
+                      {{ v_name }} är fortfarande full
+                      ({{ states(v_power_sensor) }} W). Töm tanken.
+                    data:
+                      tag: "avfuktare_full_{{ v_power_sensor }}"
+                      group: "avfuktare"
+  # Valfri "tömd"-notis när effekten återgår till normal (kompressorn
+  # startar igen, dvs över running_power_min).
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ v_notify_when_emptied | bool }}"
+        sequence:
+          - wait_template: >-
+              {{ states(v_power_sensor) | float(0) > v_running_power_min | float }}
+            timeout:
+              hours: 24
+            continue_on_timeout: false
+          - action: !input notify_service
+            data:
+              title: "Avfuktare igång igen"
+              message: "{{ v_name }} avfuktar igen - tanken verkar tömd."
+              data:
+                tag: "avfuktare_full_{{ v_power_sensor }}"
+                group: "avfuktare"

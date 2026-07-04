@@ -22,8 +22,18 @@ prometheus:
       - sensor.*_energi_*
       # Dehumidifiers - Storage outside
       - fan.avfuktare
+      - sensor.avfuktare_luftfuktighet
       # Dehumidifiers - Otto Storage inside
       - binary_sensor.otto_dehumidifier_tank_full
       - sensor.otto_dehumidifier_luftfuktighet
+      # Dehumidifier tank-full detection via Shelly power signature.
+      # Needed to graph the compressor cycle and tune the "full"
+      # power band (see automations/avfuktare/). The switch state
+      # tells full (fan-level W) apart from off (~0 W).
+      - sensor.shellyplugsg3_e4b063f90d0c_effekt   # Otto inside - power
+      - switch.shellyplugsg3_e4b063f90d0c          # Otto inside - plug on/off
+      # When the outdoor unit gets its own Shelly plug, add it here:
+      # - sensor.shellyplugsg3_XXXX_effekt
+      # - switch.shellyplugsg3_XXXX
     exclude_entities:
       - homeassistant_state_change_total
