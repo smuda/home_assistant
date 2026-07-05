@@ -1,39 +1,48 @@
 prometheus:
   filter:
     include_domains:
-      - climate
-      - humidifier
+      - climate            # heat pumps / floor heat (automation targets, temp graphs)
+      - humidifier         # dehumidifiers (price-driven)
     include_entities:
-      # Nordpool prices
+      # Electricity price (drives dehumidifier / heating / lamp automations)
       - sensor.nord_pool_se3_aktuellt_pris
-      # Electric current P1 import
-      - sensor.p1_meter_strom_fas_*
-      # Energy P1 import
+      - sensor.nordpool_se3_inkl_skatt_o_nat
+      # P1 whole-house meter (import current / power / energy)
+      - sensor.p1_meter_strom_fas_*        # raw phase current (fuse loop input)
+      - sensor.p1_fas_*_filtrerad          # 20s filtered phase current (fuse decision)
+      - sensor.p1_meter_effekt
+      - sensor.p1_meter_effekt_fas_*
       - sensor.p1_meter_total_elimport
-      # Zaptec EV charger - for the charging dashboard
-      - sensor.zag064494_strom_fas_*             # actual current per phase
-      - sensor.zag064494_tilldelad_laddstrom     # allocated current
-      - number.zag064494_max_laddstrom           # configured max (control output)
-      - sensor.zag064494_laddeffekt              # charging power
-      - sensor.zag064494_laddat_denna_sessionen  # energy this session
-      # Energy consumption
-      - sensor.daikinap24848_energiforbrukning
+      - sensor.p1_meter_total_elimport_cost
+      # Zaptec EV charger (fuse-protection loop + charging dashboard)
+      - sensor.zag064494_*                 # current, power, energy, status, volt, temp
+      - sensor.zaptec_strom_fas_*_filtrerad  # filtered charger current (entity id is zaptec_*, not zag*)
+      - number.zag064494_max_laddstrom     # control output (current cap)
+      - number.zag064494_min_laddstrom
+      - input_boolean.zaptec_fuse_paused   # fuse-stop latch (debug the flap logic)
+      # Per-device power + energy (Energy Usage / Unknown Usage accounting).
+      # Unknown Usage = total import minus every other energy meter, so the
+      # whole *_energi set must stay exported or its load drifts into Unknown.
+      - sensor.*_effekt
+      - sensor.*_effekt_*
       - sensor.*_energi
       - sensor.*_energi_*
-      # Dehumidifiers - Storage outside
-      - fan.avfuktare
+      - sensor.*_aterford_energi
+      # Heat pump energy + temps (Energy Usage targets + outdoor-temp panel)
+      - sensor.daikinap*_climatecontrol_arlig_energiforbrukning_for_*
+      - sensor.daikinap*_climatecontrol_*temperatur
+      - sensor.daikinap24848_energiforbrukning
+      - sensor.daikinap24848_innetemperatur
+      - sensor.daikinap24848_utetemperatur
+      # Dehumidifier (tank-full alarm signals)
       - sensor.avfuktare_luftfuktighet
-      # Dehumidifiers - Otto Storage inside
-      - binary_sensor.otto_dehumidifier_tank_full
       - sensor.otto_dehumidifier_luftfuktighet
-      # Dehumidifier tank-full detection via Shelly power signature.
-      # Needed to graph the compressor cycle and tune the "full"
-      # power band (see automations/avfuktare/). The switch state
-      # tells full (fan-level W) apart from off (~0 W).
-      - sensor.shellyplugsg3_e4b063f90d0c_effekt   # Otto inside - power
-      - switch.shellyplugsg3_e4b063f90d0c          # Otto inside - plug on/off
-      # When the outdoor unit gets its own Shelly plug, add it here:
-      # - sensor.shellyplugsg3_XXXX_effekt
-      # - switch.shellyplugsg3_XXXX
+      - binary_sensor.otto_dehumidifier_tank_full
+      - switch.shellyplugsg3_e4b063f90d0c
+      - fan.otto_dehumidifier
+      # Indoor climate (cheap, nice for graphs - optional)
+      - sensor.z_wave_device_multichannel_*_temperatur
+      - sensor.z_wave_device_multichannel_*_luftfuktighet
+      - sensor.fibaro_motion_sensor_zw5_temperatur
     exclude_entities:
       - homeassistant_state_change_total
