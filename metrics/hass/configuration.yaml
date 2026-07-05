@@ -34,11 +34,14 @@ prometheus:
       - sensor.daikinap24848_energiforbrukning
       - sensor.daikinap24848_innetemperatur
       - sensor.daikinap24848_utetemperatur
-      # Dehumidifier (tank-full alarm signals)
+      # Dehumidifier (tank-full alarm signals). Shelly power sensors ride
+      # the sensor.*_effekt wildcard above; the plug switches need an
+      # explicit line each (switch.* is not wildcarded).
       - sensor.avfuktare_luftfuktighet
       - sensor.otto_dehumidifier_luftfuktighet
       - binary_sensor.otto_dehumidifier_tank_full
-      - switch.shellyplugsg3_e4b063f90d0c
+      - switch.shellyplugsg3_e4b063f90d0c    # Otto (inneförråd)
+      - switch.uteforrad_plug_avfuktare_uteforrad    # uteförråd
       - fan.otto_dehumidifier
       # Indoor climate (cheap, nice for graphs - optional)
       - sensor.z_wave_device_multichannel_*_temperatur

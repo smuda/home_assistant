@@ -77,7 +77,7 @@ på, så det är inget problem här.
 |----------------------------------|------|
 | `tank_full_notify.blueprint.yaml`| Blueprint - själva logiken, en instans per avfuktare |
 | `inneforrad_otto.yaml`           | Aktiv instans för Otto (Shelly + Tuya) |
-| `uteforrad.yaml`                 | Förberedd instans för uteförrådet (aktiveras när en Shelly sätts dit) |
+| `uteforrad.yaml`                 | Instans för uteförrådet (Shelly, ingen Tuya); byt ut plugg-id:na innan omladdning |
 
 Effektsensorn och pluggens on/off läggs också till i prometheus-
 filtret i `metrics/hass/configuration.yaml` så förbrukningen
@@ -149,8 +149,17 @@ finjusteras per enhet:
 
 ## Andra enheten (uteförrådet)
 
-`fan.avfuktare` och `humidifier.avfuktare` saknar idag både
-effektmätare och tank_full-sensor. När en Shelly-plugg sätts dit:
-fyll i de nya entiteterna i `uteforrad.yaml`, avkommentera, och ladda
-om. Verifiera trösklarna mot den enhetens egen full-cykel -
-kompressoreffekten kan skilja sig från Ottos.
+`fan.avfuktare` och `humidifier.avfuktare` har nu en egen Shelly-plugg
+men ingen tank_full-sensor, så detektionen vilar helt på effekten.
+`uteforrad.yaml` använder `sensor.uteforrad_plug_avfuktare_uteforrad_effekt`
+och `switch.uteforrad_plug_avfuktare_uteforrad`, och samma switch ligger i
+prometheus-filtret. Verifiera trösklarna mot enhetens egen full-cykel -
+kompressoreffekten kan skilja sig från Ottos, så `full_power_max` kan
+behöva justeras.
+
+## Fler mottagare
+
+`notify_services` tar en lista, en rad per mottagare, och skickar samma
+notis till alla. Båda instanserna larmar till John och Sara
+(`notify.mobile_app_johns_iphone_13` och `notify.mobile_app_trollunge`).
+Lägg till eller ta bort rader för att ändra vilka telefoner som nås.

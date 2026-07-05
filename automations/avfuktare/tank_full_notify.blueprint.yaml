@@ -141,12 +141,16 @@ blueprint:
       selector:
         entity:
           domain: binary_sensor
-    notify_service:
-      name: Notistjänst
-      description: Tjänst att skicka notisen till, t.ex. din telefon.
-      default: notify.mobile_app_johns_iphone_13
+    notify_services:
+      name: Notistjänster
+      description: >-
+        En eller flera tjänster att skicka notisen till, t.ex. mobiler.
+        Lägg till en rad per mottagare - alla får samma notis.
+      default:
+        - notify.mobile_app_johns_iphone_13
       selector:
         text:
+          multiple: true
     reminder_hours:
       name: Påminnelse-intervall (timmar)
       description: >-
@@ -185,6 +189,7 @@ variables:
   v_tank_full_sensor: !input tank_full_sensor
   v_reminder_hours: !input reminder_hours
   v_notify_when_emptied: !input notify_when_emptied
+  v_notify_services: !input notify_services
 
 triggers:
   # Effekt-vägen: effekten har legat vid/under tröskeln oavbrutet
@@ -228,16 +233,19 @@ actions:
         {% set tuya = v_use_tuya and is_state(v_tank_full_sensor, 'on') %}
         {{ tuya or (is_state(v_plug_switch, 'on')
                     and p <= v_full_power_max | float) }}
-  # Första larmet.
-  - action: !input notify_service
-    data:
-      title: "Avfuktare full"
-      message: >-
-        {{ v_name }} verkar vara full ({{ states(v_power_sensor) }} W).
-        Töm tanken så den kan fortsätta avfukta.
-      data:
-        tag: "avfuktare_full_{{ v_power_sensor }}"
-        group: "avfuktare"
+  # Första larmet - till varje mottagare i listan.
+  - repeat:
+      for_each: "{{ v_notify_services }}"
+      sequence:
+        - action: "{{ repeat.item }}"
+          data:
+            title: "Avfuktare full"
+            message: >-
+              {{ v_name }} verkar vara full ({{ states(v_power_sensor) }} W).
+              Töm tanken så den kan fortsätta avfukta.
+            data:
+              tag: "avfuktare_full_{{ v_power_sensor }}"
+              group: "avfuktare"
   # Valfri påminnelse-loop: påminn var reminder_hours så länge tanken
   # fortfarande är full. Hoppas över helt om reminder_hours = 0.
   - choose:
@@ -254,15 +262,18 @@ actions:
                 # Kontrollera igen EFTER väntan - kan ha tömts under tiden.
                 - condition: template
                   value_template: "{{ is_full_tpl | bool }}"
-                - action: !input notify_service
-                  data:
-                    title: "Avfuktare fortfarande full"
-                    message: >-
-                      {{ v_name }} är fortfarande full
-                      ({{ states(v_power_sensor) }} W). Töm tanken.
-                    data:
-                      tag: "avfuktare_full_{{ v_power_sensor }}"
-                      group: "avfuktare"
+                - repeat:
+                    for_each: "{{ v_notify_services }}"
+                    sequence:
+                      - action: "{{ repeat.item }}"
+                        data:
+                          title: "Avfuktare fortfarande full"
+                          message: >-
+                            {{ v_name }} är fortfarande full
+                            ({{ states(v_power_sensor) }} W). Töm tanken.
+                          data:
+                            tag: "avfuktare_full_{{ v_power_sensor }}"
+                            group: "avfuktare"
   # Valfri "tömd"-notis när effekten återgår till normal (kompressorn
   # startar igen, dvs över running_power_min).
   - choose:
@@ -275,10 +286,13 @@ actions:
             timeout:
               hours: 24
             continue_on_timeout: false
-          - action: !input notify_service
-            data:
-              title: "Avfuktare igång igen"
-              message: "{{ v_name }} avfuktar igen - tanken verkar tömd."
-              data:
-                tag: "avfuktare_full_{{ v_power_sensor }}"
-                group: "avfuktare"
+          - repeat:
+              for_each: "{{ v_notify_services }}"
+              sequence:
+                - action: "{{ repeat.item }}"
+                  data:
+                    title: "Avfuktare igång igen"
+                    message: "{{ v_name }} avfuktar igen - tanken verkar tömd."
+                    data:
+                      tag: "avfuktare_full_{{ v_power_sensor }}"
+                      group: "avfuktare"
