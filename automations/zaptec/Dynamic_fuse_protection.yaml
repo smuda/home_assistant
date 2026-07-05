@@ -32,6 +32,7 @@ triggers:
     minutes: "/1"
   - trigger: state
     entity_id: sensor.zag064494_laddstatus
+    for: "00:00:10"
   # Wake fast on a raw surge; the decision logic below uses the
   # filtered values, so a spurious spike here cannot cause a stop.
   - trigger: numeric_state
@@ -54,14 +55,31 @@ variables:
   deadband: 3 # min amps difference before changing
   min_interval: 900 # min seconds between normal changes (>= 15 min)
   emergency_phase: 24 # any phase at/above this -> immediate cut
-  resume_hyst: 2 # extra amps load must fall before resuming
+  resume_hyst: 6 # extra amps load must fall before resuming (widened to damp flap)
+  resume_min_hold: 300 # min seconds a fuse-stop is held before resume is allowed
+  restop_lockout: 30 # min seconds after a resume before another stop is allowed
   ev_min: 6 # Zaptec Go minimum charge current
   ev_max: 16 # installer hardware cap
   max_age: 60 # P1 data older than this (s) is treated as a dropout
   failsafe_other: 18 # assumed other-phase load (A) when P1 is dead
-  c1: "{{ states('sensor.zag064494_strom_fas_1')|float(0) }}"
-  c2: "{{ states('sensor.zag064494_strom_fas_2')|float(0) }}"
-  c3: "{{ states('sensor.zag064494_strom_fas_3')|float(0) }}"
+  # Charger current: filtered (20 s MA) when present, else raw. Filtering
+  # the charger like the household keeps other_load stable through
+  # stop/resume transients (both signals lag equally).
+  c1: >-
+    {{ (states('sensor.zaptec_strom_fas_1_filtrerad')
+        if states('sensor.zaptec_strom_fas_1_filtrerad')
+           not in ['unknown','unavailable']
+        else states('sensor.zag064494_strom_fas_1'))|float(0) }}
+  c2: >-
+    {{ (states('sensor.zaptec_strom_fas_2_filtrerad')
+        if states('sensor.zaptec_strom_fas_2_filtrerad')
+           not in ['unknown','unavailable']
+        else states('sensor.zag064494_strom_fas_2'))|float(0) }}
+  c3: >-
+    {{ (states('sensor.zaptec_strom_fas_3_filtrerad')
+        if states('sensor.zaptec_strom_fas_3_filtrerad')
+           not in ['unknown','unavailable']
+        else states('sensor.zag064494_strom_fas_3'))|float(0) }}
   cap: "{{ fuse - margin }}"
   # P1 liveness from the RAW meter. Use last_reported (advances on
   # every meter push, even an unchanged value) so a steady load is
@@ -96,6 +114,12 @@ variables:
   emergency: "{{ ptot_max >= emergency_phase }}"
   status: "{{ states('sensor.zag064494_laddstatus') }}"
   is_paused: "{{ is_state('input_boolean.zaptec_fuse_paused', 'on') }}"
+  # input_boolean flips on=stop / off=resume, so its last_changed IS the
+  # timestamp of the last stop/resume. When paused this is time-in-pause;
+  # when not paused it is time-since-resume. No new helper needed.
+  secs_since_pause: >-
+    {{ (now() - states.input_boolean.zaptec_fuse_paused.last_changed)
+       .total_seconds() }}
   # Only "actually charging" - NOT connected_requesting. Acting during
   # requesting (Eco waiting) would suspend Eco and start charging now.
   charging: "{{ status == 'connected_charging' }}"
@@ -127,7 +151,8 @@ actions:
       - conditions:
           - condition: template
             value_template: >-
-              {{ is_paused and can_resume and status != 'disconnected' }}
+              {{ is_paused and can_resume and status != 'disconnected'
+                 and secs_since_pause >= resume_min_hold }}
         sequence:
           - action: button.press
             target:
@@ -139,7 +164,9 @@ actions:
       # Last resort: even 6 A will not fit under the fuse -> stop.
       - conditions:
           - condition: template
-            value_template: "{{ not is_paused and charging and must_stop }}"
+            value_template: >-
+              {{ not is_paused and charging and must_stop
+                 and secs_since_pause >= restop_lockout }}
         sequence:
           - action: button.press
             target:

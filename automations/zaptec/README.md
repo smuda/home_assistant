@@ -82,6 +82,17 @@ without manual intervention. The helper also lets it tell "we
 paused for the fuse" apart from a normally finished charge, and is
 cleared if the car is unplugged while paused.
 
+Several guards keep this from becoming a rapid stop/resume cascade,
+which can trip Zaptec's WARNING_MAX_SESSION_RESTART and abort the
+car. A fuse-stop is now held a minimum time (`resume_min_hold`,
+300 s) before auto-resume is allowed. A resume then imposes a short
+re-stop lockout (`restop_lockout`, 30 s) before another stop can
+fire. The resume hysteresis was widened (`resume_hyst` 2 -> 6 A) so
+load must fall further below the stop threshold before resuming, and
+the `laddstatus` trigger is debounced 10 s so a flickering status
+does not re-evaluate the logic repeatedly. Together these damp the
+flapping that would otherwise restart the session too often.
+
 ## How it works
 
 For each phase:
@@ -99,9 +110,11 @@ Each evaluation picks one action, in priority order:
 
 1. Clear the pause helper if the car is unplugged while paused.
 2. Resume (press resume, clear helper) if we are paused and load
-   has fallen so `other_load + 6 A <= fuse - resume_hyst`.
-3. Stop (press stop, set helper) if not paused, charging, and
-   even 6 A would breach the fuse (`other_load + 6 A >= fuse`).
+   has fallen so `other_load + 6 A <= fuse - resume_hyst`, and the
+   stop has been held at least `resume_min_hold` (300 s).
+3. Stop (press stop, set helper) if not paused, charging, even 6 A
+   would breach the fuse (`other_load + 6 A >= fuse`), and at least
+   `restop_lockout` (30 s) has passed since the last resume.
 4. Set the max charge current to `raw_target` if not paused,
    charging, and either `|raw_target - current| >= deadband`
    and `min_interval` has passed (normal path), or a phase
@@ -148,6 +161,16 @@ a 20-second moving average dilutes a one-sample spike below the
 stop and emergency thresholds while still tracking real, sustained
 load. The normal current-adjustment path is already noise-tolerant
 via its deadband and 15-minute interval.
+
+The charger's own current (`c1..c3`) is now read the same way, from
+20-second filtered sensors
+(`sensor.zaptec_strom_fas_{1,2,3}_filtrerad`), rather than the
+raw charger sensors. Because the non-car load estimate is
+`P1_phase_current - charger_phase_current`, filtering both signals
+means they lag equally, so `other_load` stays stable across a
+stop/resume transient instead of jumping while one side catches up.
+The raw charger sensors are used as a fallback until the filtered
+ones exist.
 
 Fail-safe on meter loss. The Home Assistant `filter` platform
 keeps emitting its last value when its source stops updating, so a
@@ -204,6 +227,16 @@ Confirm the resulting entity ids are `sensor.p1_fas_1_filtrerad`,
 `_2_`, `_3_` (Home Assistant derives them from the friendly names).
 Until they exist the automation falls back to the raw P1 sensors.
 
+The same file also defines three charger-current filter sensors.
+Home Assistant derives their entity ids from the friendly name, so
+"Zaptec strom fas 1 filtrerad" becomes
+`sensor.zaptec_strom_fas_1_filtrerad` (not `zag064494_...`, despite
+the `unique_id`) — that is the id `c1..c3` reference. They are
+ordinary platform sensors too, so they likewise need a Home
+Assistant restart (not just an automation reload) before `c1..c3`
+will use them; until then `c1..c3` fall back to the raw charger
+sensors.
+
 ## Configuration
 
 Edit the `variables` block in `Dynamic_fuse_protection.yaml`:
@@ -220,7 +253,11 @@ Edit the `variables` block in `Dynamic_fuse_protection.yaml`:
   immediate reduction regardless of the interval. 24 (1 A below
   the fuse).
 - `resume_hyst` — extra amps non-car load must fall below the stop
-  threshold before resuming, to avoid stop/resume flapping. 2.
+  threshold before resuming, to avoid stop/resume flapping. 6.
+- `resume_min_hold` — minimum seconds a fuse-stop is held before
+  auto-resume is allowed, so a stop is not undone immediately. 300.
+- `restop_lockout` — minimum seconds after a resume before another
+  stop may fire, damping a stop/resume cascade. 30.
 - `max_age` — seconds without a raw P1 update before the feed is
   treated as dead and the fail-safe kicks in. 60.
 - `failsafe_other` — assumed non-car load per phase (amps) when P1

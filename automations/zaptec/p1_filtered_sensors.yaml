@@ -54,3 +54,27 @@ sensor:
     filters:
       - filter: time_simple_moving_average
         window_size: "00:00:20"
+
+  - platform: filter
+    name: "Zaptec strom fas 1 filtrerad"
+    unique_id: zag064494_strom_fas_1_filtrerad
+    entity_id: sensor.zag064494_strom_fas_1
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:00:20"
+
+  - platform: filter
+    name: "Zaptec strom fas 2 filtrerad"
+    unique_id: zag064494_strom_fas_2_filtrerad
+    entity_id: sensor.zag064494_strom_fas_2
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:00:20"
+
+  - platform: filter
+    name: "Zaptec strom fas 3 filtrerad"
+    unique_id: zag064494_strom_fas_3_filtrerad
+    entity_id: sensor.zag064494_strom_fas_3
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:00:20"
