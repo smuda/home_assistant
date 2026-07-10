@@ -22,11 +22,14 @@
 #   - Nådd målfukt        -> stannar också kompressorn, men återupptar
 #     när fukten stiger. Skiljs på varaktighet (low_duration).
 #
-# Tuya (Otto) har dessutom binary_sensor.*_tank_full. Den är rätt
-# signal NÄR den fungerar, men har stått `unavailable` i veckor
-# (molnberoende - den var otillgänglig även under full-cykeln ovan).
-# Därför: effekten är primär, Tuya bara ett komplement. Enheter utan
-# Tuya sätter use_tank_full_sensor: false.
+# Tuya (Otto) har dessutom binary_sensor.*_tank_full. Den kan ge ett
+# snabbare larm NÄR den fungerar, men är molnberoende och opålitlig:
+# den har stått `unavailable` i veckor OCH rapporterat full=on medan
+# kompressorn faktiskt kört (234 W). Därför får Tuya bara vara en
+# TRIGGER, aldrig ensamt bevis - larmet kräver ändå att effekten är
+# vid/under tröskeln (~0 W = kompressorn stoppad). Så slipper vi det
+# motsägelsefulla "full (234 W)". Effekten är sanningskällan; Tuya
+# snabbar bara på. Enheter utan Tuya sätter use_tank_full_sensor: false.
 
 blueprint:
   name: Avfuktare full - notis (effekt + valfri Tuya)
@@ -222,17 +225,26 @@ conditions:
       {{ trigger.id == 'tuya_full'
          or not v_use_price_gate
          or (states(v_price_sensor) | float(0) < v_price_off_above | float) }}
+  # Effekten måste faktiskt vara låg just nu. En full tank står på
+  # ~0 W; drar enheten fortfarande (~234 W) är den INTE full, oavsett
+  # vad Tuya säger. Tuya har rapporterat full medan kompressorn kört -
+  # detta villkor stoppar den motsägelsen ("full (234 W)"). Gäller
+  # båda triggervägarna: effekt-vägen är redan låg när den fyrar, och
+  # för Tuya-vägen är det korskollen som saknades.
+  - condition: numeric_state
+    entity_id: !input power_sensor
+    below: !input full_power_max
 
 actions:
-  - variables:
-      # Live-mall som återanvänds i påminnelse-loopen. Full om Tuya
-      # säger full (när den används) ELLER effekten är vid/under
-      # tröskeln medan pluggen är på.
-      is_full_tpl: >-
-        {% set p = states(v_power_sensor) | float(999) %}
-        {% set tuya = v_use_tuya and is_state(v_tank_full_sensor, 'on') %}
-        {{ tuya or (is_state(v_plug_switch, 'on')
-                    and p <= v_full_power_max | float) }}
+  # OBS: "full?"-villkoret måste renderas LIVE varje varv i påminnelse-
+  # loopen. Ett värde satt via "variables:" renderas bara EN gång och
+  # fryses (HA lagrar det renderade resultatet, inte själva mallen), så
+  # loopen skulle aldrig se att enheten börjat köra igen efter tömning.
+  # Därför står mallen inline i både while och recheck nedan: full när
+  # pluggen är på OCH effekten är vid/under tröskeln. Tuya används INTE
+  # i loopen - en Tuya som fastnat i 'on' gav annars "fortfarande full
+  # (234 W)" var reminder_hours trots att kompressorn kört. Effekten är
+  # sanningskällan för om tanken fortfarande är full.
   # Första larmet - till varje mottagare i listan.
   - repeat:
       for_each: "{{ v_notify_services }}"
@@ -256,12 +268,18 @@ actions:
           - repeat:
               while:
                 - condition: template
-                  value_template: "{{ is_full_tpl | bool }}"
+                  value_template: >-
+                    {% set p = states(v_power_sensor) | float(999) %}
+                    {{ is_state(v_plug_switch, 'on')
+                       and p <= v_full_power_max | float }}
               sequence:
                 - delay: "{{ (v_reminder_hours | float(0) * 3600) | int }}"
                 # Kontrollera igen EFTER väntan - kan ha tömts under tiden.
                 - condition: template
-                  value_template: "{{ is_full_tpl | bool }}"
+                  value_template: >-
+                    {% set p = states(v_power_sensor) | float(999) %}
+                    {{ is_state(v_plug_switch, 'on')
+                       and p <= v_full_power_max | float }}
                 - repeat:
                     for_each: "{{ v_notify_services }}"
                     sequence:

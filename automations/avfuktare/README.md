@@ -47,9 +47,14 @@ Det är den rätta signalen när den fungerar. Men i praktiken:
   otillgänglig.
 - Shelly är lokal och alltid tillgänglig.
 
-Därför är effektsignaturen primär och Tuya bara ett komplement som
-ger direktlarm när det råkar fungera. Den yttre enheten har ingen
-Tuya-sensor alls och vilar helt på effekten.
+Därför är effektsignaturen primär och Tuya bara ett komplement. Tuya
+får vara en trigger som kan larma snabbare, men aldrig ensamt bevis:
+larmet kräver ändå att effekten är vid eller under tröskeln (~0 W).
+Utan den korskollen kunde en Tuya som rapporterade full=on medan
+kompressorn körde ge det motsägelsefulla larmet "full (234 W)" - och
+en Tuya som fastnat i on gav samma sak i påminnelse-loopen var 6:e
+timme. Den yttre enheten har ingen Tuya-sensor alls och vilar helt på
+effekten.
 
 ## Att skilja 0 W-full från andra 0 W-lägen
 
