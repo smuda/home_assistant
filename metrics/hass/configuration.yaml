@@ -47,5 +47,54 @@ prometheus:
       - sensor.z_wave_device_multichannel_*_temperatur
       - sensor.z_wave_device_multichannel_*_luftfuktighet
       - sensor.fibaro_motion_sensor_zw5_temperatur
+      # Sungrow SH10RT-20 + Pylontech Force H3 (mkaiser modbus package).
+      # English entity ids, so they miss the *_effekt / *_energi
+      # wildcards above and need explicit lines. Raw/limit/firmware
+      # and unavailable (SBR-only) sensors are intentionally excluded.
+      # Solar (PV)
+      - sensor.total_dc_power              # PV DC power (W)
+      - sensor.total_active_power          # inverter AC output (W)
+      - sensor.mppt1_power                 # per-string DC power (W)
+      - sensor.mppt2_power
+      - sensor.mppt3_power
+      - sensor.mppt4_power
+      - sensor.daily_pv_generation         # kWh/day
+      - sensor.total_pv_generation         # kWh lifetime
+      # Battery (data read from the inverter, not the Pylontech BMS)
+      - sensor.battery_level               # SOC (%)
+      - sensor.battery_power               # magnitude (W)
+      - sensor.battery_charging_power
+      - sensor.battery_discharging_power
+      - sensor.battery_charging_power_signed   # signed: -charge / +discharge
+      - sensor.battery_voltage
+      - sensor.battery_current
+      - sensor.battery_temperature
+      - sensor.battery_state_of_health
+      - sensor.battery_capacity_high_precision
+      - sensor.battery_max_charge_power
+      - sensor.battery_max_discharge_power
+      - sensor.daily_battery_charge
+      - sensor.daily_battery_charge_from_pv
+      - sensor.daily_battery_discharge
+      - sensor.total_battery_charge
+      - sensor.total_battery_charge_from_pv
+      - sensor.total_battery_discharge
+      # Grid + house load (self-consumption analysis)
+      - sensor.export_power
+      - sensor.import_power
+      - sensor.load_power
+      - sensor.meter_active_power
+      - sensor.grid_frequency
+      - sensor.daily_exported_energy
+      - sensor.daily_exported_energy_from_pv
+      - sensor.daily_imported_energy
+      - sensor.daily_consumed_energy
+      - sensor.total_exported_energy
+      - sensor.total_exported_energy_from_pv
+      - sensor.total_imported_energy
+      - sensor.total_consumed_energy
+      - sensor.total_direct_energy_consumption
+      # Inverter health
+      - sensor.inverter_temperature
     exclude_entities:
       - homeassistant_state_change_total
