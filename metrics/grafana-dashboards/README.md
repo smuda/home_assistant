@@ -36,13 +36,17 @@ Each module writes one file into the provisioning folder:
 make sungrow      # writes ../grafana/provisioning/dashboards/sungrow.json
 make zaptec       # writes ../grafana/provisioning/dashboards/Zaptec_charging.json
 make all          # every dashboard
+make deploy       # every dashboard, then check Grafana is up to reload
 ```
 
 The target name is the module directory; run `make <dir>` to
 regenerate a single dashboard.
 
 Grafana picks up the new file within its provisioning reload
-interval (about 10 s); no restart is needed.
+interval (about 10 s); no restart is needed. Because the local
+Grafana container (`make grafana` in `../`) bind-mounts the
+provisioning folder, regenerating the JSON is the whole deploy;
+`make deploy` just regenerates and warns if the container is down.
 
 ## Notes
 
