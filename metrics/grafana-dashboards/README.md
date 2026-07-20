@@ -10,18 +10,36 @@ container loads and reloads automatically.
 
 ```
 grafana-dashboards/
-  Makefile          # regenerates the JSON into the provisioning folder
-  sungrow/          # one Go module per dashboard
+  Makefile               # regenerates the JSON into the provisioning folder
+  sungrow/               # one Go module per dashboard
     main.go
     go.mod
+  energy-import/
+  energy-usage/
+  energy-usage-monthly/
+  zaptec/
 ```
+
+Each module writes one file into the provisioning folder:
+
+| Module                 | Output JSON                  | Dashboard             |
+| ---------------------- | ---------------------------- | --------------------- |
+| `sungrow`              | `sungrow.json`               | Sungrow – Sol & Batteri |
+| `energy-import`        | `Energy_import.json`         | Energy import         |
+| `energy-usage`         | `Energy_usage.json`          | Energy Usage          |
+| `energy-usage-monthly` | `Energy_usage_monthly.json`  | Energy Usage Monthly  |
+| `zaptec`               | `Zaptec_charging.json`       | Zaptec Charging       |
 
 ## Regenerate
 
 ```sh
 make sungrow      # writes ../grafana/provisioning/dashboards/sungrow.json
+make zaptec       # writes ../grafana/provisioning/dashboards/Zaptec_charging.json
 make all          # every dashboard
 ```
+
+The target name is the module directory; run `make <dir>` to
+regenerate a single dashboard.
 
 Grafana picks up the new file within its provisioning reload
 interval (about 10 s); no restart is needed.

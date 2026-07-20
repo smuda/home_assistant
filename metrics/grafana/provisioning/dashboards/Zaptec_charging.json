@@ -1,82 +1,82 @@
 {
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
-  },
+  "uid": "zaptec-charging",
+  "title": "Zaptec Charging",
+  "tags": [
+    "zaptec",
+    "ev"
+  ],
+  "timezone": "browser",
   "editable": true,
-  "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 0,
-  "links": [],
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "fiscalYearStartMonth": 0,
+  "refresh": "1m",
+  "schemaVersion": 42,
   "panels": [
     {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_1\"}",
+          "legendFormat": "Fas 1"
+        },
+        {
+          "expr": "homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_2\"}",
+          "legendFormat": "Fas 2"
+        },
+        {
+          "expr": "homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_3\"}",
+          "legendFormat": "Fas 3"
+        },
+        {
+          "expr": "homeassistant_number_state_a{entity=\"number.zag064494_max_laddstrom\"}",
+          "legendFormat": "Max (konfig)"
+        },
+        {
+          "expr": "homeassistant_sensor_current_a{entity=\"sensor.zag064494_tilldelad_laddstrom\"}",
+          "legendFormat": "Tilldelad"
+        }
+      ],
+      "title": "Laddström per fas vs konfigurerad max",
+      "description": "Actual charge current drawn per phase, the configured max (the automation's control output) and the current the charger allocates. Watch a session start at 6 A and ramp to 16 A.",
+      "transparent": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P4169E866C3094E38"
       },
-      "description": "Actual charge current drawn per phase, the configured max (the automation's control output) and the current the charger allocates. Watch a session start at 6 A and ramp to 16 A.",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "repeatDirection": "h",
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": ""
+        }
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 8,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 3,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
+          "unit": "amp",
           "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "amp"
+          "custom": {
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
         },
         "overrides": [
           {
@@ -130,282 +130,107 @@
             ]
           }
         ]
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 2,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
-          "expr": "homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_1\"}",
-          "legendFormat": "Fas 1",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
-          "expr": "homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_2\"}",
-          "legendFormat": "Fas 2",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
-          "expr": "homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_3\"}",
-          "legendFormat": "Fas 3",
-          "range": true,
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
-          "expr": "homeassistant_number_state_a{entity=\"number.zag064494_max_laddstrom\"}",
-          "legendFormat": "Max (konfig)",
-          "range": true,
-          "refId": "D"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
-          "expr": "homeassistant_sensor_current_a{entity=\"sensor.zag064494_tilldelad_laddstrom\"}",
-          "legendFormat": "Tilldelad",
-          "range": true,
-          "refId": "E"
-        }
-      ],
-      "title": "Laddström per fas vs konfigurerad max",
-      "type": "timeseries"
+      }
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "description": "Total household current per phase from the P1 meter. The orange line is the automation's effective cap (fuse − margin = 22 A); the red line is the 25 A main fuse.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 8,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 3,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "line"
-            }
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "orange",
-                "value": 22
-              },
-              {
-                "color": "red",
-                "value": 25
-              }
-            ]
-          },
-          "unit": "amp"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 9
-      },
-      "id": 3,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.2.0",
+      "type": "timeseries",
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
           "expr": "homeassistant_sensor_current_a{entity=\"sensor.p1_meter_strom_fas_1\"}",
-          "legendFormat": "Fas 1",
-          "range": true,
-          "refId": "A"
+          "legendFormat": "Fas 1"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
           "expr": "homeassistant_sensor_current_a{entity=\"sensor.p1_meter_strom_fas_2\"}",
-          "legendFormat": "Fas 2",
-          "range": true,
-          "refId": "B"
+          "legendFormat": "Fas 2"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
           "expr": "homeassistant_sensor_current_a{entity=\"sensor.p1_meter_strom_fas_3\"}",
-          "legendFormat": "Fas 3",
-          "range": true,
-          "refId": "C"
+          "legendFormat": "Fas 3"
         }
       ],
       "title": "Hushållsström per fas vs säkring",
-      "type": "timeseries"
-    },
-    {
+      "description": "Total household current per phase from the P1 meter. The orange line is the automation's effective cap (fuse − margin = 22 A); the red line is the 25 A main fuse.",
+      "transparent": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P4169E866C3094E38"
       },
-      "description": "Non-car load per phase (P1 meter minus the charger's own current). This is what the automation reacts to. The red line is the last-resort stop threshold: when this reaches ~19 A even 6 A of car current would breach the fuse.",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "repeatDirection": "h",
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": ""
+        }
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 8,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 3,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "line"
-            }
-          },
-          "mappings": [],
+          "unit": "amp",
           "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "value": 0,
+                "color": "green"
               },
               {
-                "color": "red",
-                "value": 19
+                "value": 22,
+                "color": "orange"
+              },
+              {
+                "value": 25,
+                "color": "red"
               }
             ]
           },
-          "unit": "amp"
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "line"
+            },
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
         },
         "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "homeassistant_sensor_current_a{entity=\"sensor.p1_meter_strom_fas_1\"} - on() homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_1\"}",
+          "legendFormat": "Fas 1"
+        },
+        {
+          "expr": "homeassistant_sensor_current_a{entity=\"sensor.p1_meter_strom_fas_2\"} - on() homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_2\"}",
+          "legendFormat": "Fas 2"
+        },
+        {
+          "expr": "homeassistant_sensor_current_a{entity=\"sensor.p1_meter_strom_fas_3\"} - on() homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_3\"}",
+          "legendFormat": "Fas 3"
+        }
+      ],
+      "title": "Övrig last per fas (P1 − bil) vs stopp-tröskel",
+      "description": "Non-car load per phase (P1 meter minus the charger's own current). This is what the automation reacts to. The red line is the last-resort stop threshold: when this reaches ~19 A even 6 A of car current would breach the fuse.",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
       },
       "gridPos": {
         "h": 9,
@@ -413,120 +238,64 @@
         "x": 12,
         "y": 9
       },
-      "id": 4,
+      "repeatDirection": "h",
       "options": {
         "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
           "calcs": [
             "lastNotNull",
             "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          ]
         },
         "tooltip": {
-          "hideZeros": false,
           "mode": "multi",
-          "sort": "desc"
+          "sort": ""
         }
       },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
-          "expr": "homeassistant_sensor_current_a{entity=\"sensor.p1_meter_strom_fas_1\"} - on() homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_1\"}",
-          "legendFormat": "Fas 1",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
-          "expr": "homeassistant_sensor_current_a{entity=\"sensor.p1_meter_strom_fas_2\"} - on() homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_2\"}",
-          "legendFormat": "Fas 2",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
-          "expr": "homeassistant_sensor_current_a{entity=\"sensor.p1_meter_strom_fas_3\"} - on() homeassistant_sensor_current_a{entity=\"sensor.zag064494_strom_fas_3\"}",
-          "legendFormat": "Fas 3",
-          "range": true,
-          "refId": "C"
-        }
-      ],
-      "title": "Övrig last per fas (P1 − bil) vs stopp-tröskel",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "description": "Charging power reported by the charger.",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 3,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
+          "unit": "amp",
           "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 19,
+                "color": "red"
               }
             ]
           },
-          "unit": "watt"
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "line"
+            },
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
         },
         "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "homeassistant_sensor_power_w{entity=\"sensor.zag064494_laddeffekt\"}",
+          "legendFormat": "Laddeffekt"
+        }
+      ],
+      "title": "Laddeffekt",
+      "description": "Charging power reported by the charger.",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
       },
       "gridPos": {
         "h": 8,
@@ -534,98 +303,48 @@
         "x": 0,
         "y": 18
       },
-      "id": 5,
+      "repeatDirection": "h",
       "options": {
         "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
           "calcs": [
             "lastNotNull",
             "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+          ]
         },
         "tooltip": {
-          "hideZeros": false,
           "mode": "single",
-          "sort": "none"
+          "sort": ""
         }
       },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
-          "expr": "homeassistant_sensor_power_w{entity=\"sensor.zag064494_laddeffekt\"}",
-          "legendFormat": "Laddeffekt",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Laddeffekt",
-      "type": "timeseries"
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "min": 0,
+          "custom": {
+            "fillOpacity": 15,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      }
     },
     {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "homeassistant_sensor_energy_kwh{entity=\"sensor.zag064494_laddat_denna_sessionen\"}",
+          "legendFormat": "Denna session"
+        }
+      ],
+      "title": "Laddat denna session",
+      "description": "Energy delivered in the current charging session.",
+      "transparent": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P4169E866C3094E38"
-      },
-      "description": "Energy delivered in the current charging session.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 3,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "kwatth"
-        },
-        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -633,57 +352,35 @@
         "x": 12,
         "y": 18
       },
-      "id": 6,
+      "repeatDirection": "h",
       "options": {
         "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
           "calcs": [
             "lastNotNull",
             "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+          ]
         },
         "tooltip": {
-          "hideZeros": false,
           "mode": "single",
-          "sort": "none"
+          "sort": ""
         }
       },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
-          },
-          "editorMode": "code",
-          "expr": "homeassistant_sensor_energy_kwh{entity=\"sensor.zag064494_laddat_denna_sessionen\"}",
-          "legendFormat": "Denna session",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Laddat denna session",
-      "type": "timeseries"
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "min": 0,
+          "custom": {
+            "fillOpacity": 15,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      }
     }
   ],
-  "preload": false,
-  "refresh": "1m",
-  "schemaVersion": 42,
-  "tags": [
-    "zaptec",
-    "ev"
-  ],
-  "templating": {
-    "list": []
-  },
-  "time": {
-    "from": "now-24h",
-    "to": "now"
-  },
-  "timepicker": {},
-  "timezone": "browser",
-  "title": "Zaptec Charging",
-  "uid": "zaptec-charging"
+  "templating": {},
+  "annotations": {}
 }
