@@ -97,6 +97,15 @@ func build() (dashboard.Dashboard, error) {
 	daikinUppe := `sum(increase(homeassistant_sensor_energy_kwh{entity=~"sensor.daikinap42080_uppe_climatecontrol_arlig_energiforbrukning_for_(varme|kyla)"}[1h]))`
 	daikinNere := `sum(increase(homeassistant_sensor_energy_kwh{entity=~"sensor.daikinap24848_nere_climatecontrol_arlig_energiforbrukning_for_(varme|kyla)"}[1h]))`
 	gridImport := `increase(homeassistant_sensor_energy_kwh{entity="sensor.p1_meter_total_elimport"} [1h])`
+	// Grid export, negated so the panel dips below zero when we feed the
+	// grid. From the P1 billing meter's own export counter, which ships
+	// disabled by default in Home Assistant and was enabled 2026-07-25.
+	// VictoriaMetrics has history only from that date, so the Export line is
+	// blank before it and fills in going forward. The Sungrow inverter's
+	// total_exported_energy — which matched the P1 power integral to within
+	// a few percent — is the pre-history fallback:
+	//   - increase(homeassistant_sensor_energy_kwh{entity="sensor.total_exported_energy"} [1h])
+	gridExport := `- increase(homeassistant_sensor_energy_kwh{entity="sensor.p1_meter_total_elexport"} [1h])`
 	// Total house consumption from the Sungrow inverter. This, not grid
 	// import, is the correct basis for the unknown-load figure now that
 	// solar and the battery cover part of the load.
@@ -132,7 +141,8 @@ func build() (dashboard.Dashboard, error) {
 		Time("now-7d", "now").
 		Timezone(common.TimeZoneBrowser).
 		WithPanel(tsPanel("Energy kWh", "", 8, common.StackingModeNormal,
-			q(gridImport, "{{friendly_name}}"),
+			q(gridImport, "Import"),
+			q(gridExport, "Export"),
 		)).
 		WithPanel(tsPanel("Usage kWh", unitKWh, 9, common.StackingModeNormal,
 			q(`increase(homeassistant_sensor_energy_kwh{`+knownExclusions+`}[1h])`, "{{friendly_name}}"),

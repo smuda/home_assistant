@@ -17,7 +17,11 @@
       "targets": [
         {
           "expr": "increase(homeassistant_sensor_energy_kwh{entity=\"sensor.p1_meter_total_elimport\"} [1h])",
-          "legendFormat": "{{friendly_name}}"
+          "legendFormat": "Import"
+        },
+        {
+          "expr": "- increase(homeassistant_sensor_energy_kwh{entity=\"sensor.p1_meter_total_elexport\"} [1h])",
+          "legendFormat": "Export"
         }
       ],
       "title": "Energy kWh",
