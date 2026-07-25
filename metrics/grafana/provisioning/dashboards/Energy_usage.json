@@ -64,7 +64,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "increase(homeassistant_sensor_energy_kwh{entity!=\"sensor.p1_meter_total_elimport\", entity!=\"sensor.daikinap24848_energiforbrukning\", entity!~\".*climatecontrol.*\", entity!~\".*aterford_energi\", entity!~\"sensor.zag064494_(forbrukad_energi|energiforbrukning_denna_laddningen)\"}[1h])",
+          "expr": "increase(homeassistant_sensor_energy_kwh{entity!=\"sensor.p1_meter_total_elimport\", entity!=\"sensor.daikinap24848_energiforbrukning\", entity!~\".*climatecontrol.*\", entity!~\".*aterford_energi\", entity!~\"sensor.zag064494_.*\", entity!~\"sensor.total_.*\", entity!~\"sensor.daily_.*\"}[1h])",
           "legendFormat": "{{friendly_name}}"
         },
         {
@@ -168,25 +168,12 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "increase(homeassistant_sensor_energy_kwh{entity=\"sensor.p1_meter_total_elimport\"} [1h]) - sum(increase(homeassistant_sensor_energy_kwh{entity!=\"sensor.p1_meter_total_elimport\", entity!=\"sensor.daikinap24848_energiforbrukning\", entity!~\".*climatecontrol.*\", entity!~\".*aterford_energi\", entity!~\"sensor.zag064494_(forbrukad_energi|energiforbrukning_denna_laddningen)\"}[1h])) - sum(increase(homeassistant_sensor_energy_kwh{entity=~\"sensor.daikinap42080_uppe_climatecontrol_arlig_energiforbrukning_for_(varme|kyla)\"}[1h])) - sum(increase(homeassistant_sensor_energy_kwh{entity=~\"sensor.daikinap24848_nere_climatecontrol_arlig_energiforbrukning_for_(varme|kyla)\"}[1h]))",
-          "legendFormat": "Unknown"
-        },
-        {
-          "expr": "increase(homeassistant_sensor_energy_kwh{entity=\"sensor.p1_meter_total_elimport\"} [1h])",
-          "hide": true,
-          "legendFormat": "Total"
-        },
-        {
-          "expr": "sum(increase(homeassistant_sensor_energy_kwh{entity!=\"sensor.p1_meter_total_elimport\", entity!=\"sensor.daikinap24848_energiforbrukning\", entity!~\".*climatecontrol.*\", entity!~\".*aterford_energi\", entity!~\"sensor.zag064494_(forbrukad_energi|energiforbrukning_denna_laddningen)\"}[1h]))",
-          "hide": true,
-          "legendFormat": "Known"
-        },
-        {
-          "expr": "avg(homeassistant_sensor_temperature_celsius{entity=~\".*utomhustemperatur\"})",
-          "legendFormat": "Outdoor temp"
+          "expr": "increase(homeassistant_sensor_energy_kwh{entity=\"sensor.total_consumed_energy\"} [1h]) - on() increase(homeassistant_sensor_energy_kwh{entity=\"sensor.total_imported_energy\"} [1h])",
+          "legendFormat": "Sol + batteri"
         }
       ],
-      "title": "Unknown Usage",
+      "title": "Transformer kWh",
+      "description": "Energy the Sungrow inverter delivered to the house from solar and the battery (total consumption minus grid import). This is the local generation that no longer shows up as grid import, and it is what the Unknown Usage panel now adds back.",
       "transparent": false,
       "datasource": {
         "type": "prometheus",
@@ -197,6 +184,79 @@
         "w": 24,
         "x": 0,
         "y": 26
+      },
+      "repeatDirection": "h",
+      "interval": "1h",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "custom": {
+            "fillOpacity": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(increase(homeassistant_sensor_energy_kwh{entity=\"sensor.total_consumed_energy\"} [1h])) - sum(increase(homeassistant_sensor_energy_kwh{entity!=\"sensor.p1_meter_total_elimport\", entity!=\"sensor.daikinap24848_energiforbrukning\", entity!~\".*climatecontrol.*\", entity!~\".*aterford_energi\", entity!~\"sensor.zag064494_.*\", entity!~\"sensor.total_.*\", entity!~\"sensor.daily_.*\"}[1h])) - sum(increase(homeassistant_sensor_energy_kwh{entity=~\"sensor.daikinap42080_uppe_climatecontrol_arlig_energiforbrukning_for_(varme|kyla)\"}[1h])) - sum(increase(homeassistant_sensor_energy_kwh{entity=~\"sensor.daikinap24848_nere_climatecontrol_arlig_energiforbrukning_for_(varme|kyla)\"}[1h])) - sum(avg_over_time(homeassistant_sensor_power_w{entity=\"sensor.zag064494_laddeffekt\"}[1h])) / 1000",
+          "legendFormat": "Unknown"
+        },
+        {
+          "expr": "increase(homeassistant_sensor_energy_kwh{entity=\"sensor.total_consumed_energy\"} [1h])",
+          "hide": true,
+          "legendFormat": "Total consumption"
+        },
+        {
+          "expr": "sum(increase(homeassistant_sensor_energy_kwh{entity!=\"sensor.p1_meter_total_elimport\", entity!=\"sensor.daikinap24848_energiforbrukning\", entity!~\".*climatecontrol.*\", entity!~\".*aterford_energi\", entity!~\"sensor.zag064494_.*\", entity!~\"sensor.total_.*\", entity!~\"sensor.daily_.*\"}[1h]))",
+          "hide": true,
+          "legendFormat": "Known"
+        },
+        {
+          "expr": "increase(homeassistant_sensor_energy_kwh{entity=\"sensor.p1_meter_total_elimport\"} [1h])",
+          "hide": true,
+          "legendFormat": "Grid import"
+        },
+        {
+          "expr": "sum(avg_over_time(homeassistant_sensor_power_w{entity=\"sensor.zag064494_laddeffekt\"}[1h])) / 1000",
+          "hide": true,
+          "legendFormat": "EV charger"
+        },
+        {
+          "expr": "avg(homeassistant_sensor_temperature_celsius{entity=~\".*utomhustemperatur\"})",
+          "legendFormat": "Outdoor temp"
+        }
+      ],
+      "title": "Unknown Usage",
+      "description": "Unmetered load: total house consumption minus every metered consumer (known meters, both Daikin units, and the EV charger). The EV is subtracted via its power sensor integrated per hour, not its energy counter, because the counter reports in delayed batches that would otherwise cause large ± spikes at each charging session. Outdoor temperature is overlaid on the right axis.",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 35
       },
       "repeatDirection": "h",
       "interval": "1h",
