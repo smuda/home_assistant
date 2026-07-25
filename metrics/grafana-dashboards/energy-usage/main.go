@@ -11,8 +11,8 @@
 // inverter's total_consumed_energy rather than grid import so that solar
 // and battery generation no longer distort it: before the PV install
 // grid import equalled consumption, but now much of the load is covered
-// locally. The "Transformer kWh" panel shows that local contribution
-// (consumption minus grid import) on its own.
+// locally. The "Sungrow Inverter" panel shows that local contribution
+// (consumption minus grid import) on its own, with battery SOC overlaid.
 package main
 
 import (
@@ -152,9 +152,21 @@ func build() (dashboard.Dashboard, error) {
 		WithPanel(tsPanel("EV Charger kWh", unitKWh, 9, common.StackingModeNone,
 			q(`increase(homeassistant_sensor_energy_kwh{entity=~"sensor.zag064494_.*"}[1h])`, "{{friendly_name}}"),
 		)).
-		WithPanel(tsPanel("Transformer kWh", unitKWh, 9, common.StackingModeNone,
+		WithPanel(tsPanel("Sungrow Inverter", unitKWh, 9, common.StackingModeNone,
 			q(transformerPush, "Sol + batteri"),
-		).Description("Energy the Sungrow inverter delivered to the house from solar and the battery (total consumption minus grid import). This is the local generation that no longer shows up as grid import, and it is what the Unknown Usage panel now adds back.")).
+			// Battery state of charge on a second axis, so the delivered
+			// energy can be read against whether the battery was charging
+			// (SOC rising) or discharging (SOC falling).
+			q(`homeassistant_sensor_battery_percent{entity="sensor.battery_level"}`, "Batterinivå"),
+		).Description("Energy the Sungrow inverter delivered to the house from solar and the battery (total consumption minus grid import). This is the local generation that no longer shows up as grid import, and it is what the Unknown Usage panel now adds back. The battery state of charge (right axis) shows whether the battery was charging or discharging.").OverrideByName("Batterinivå", []dashboard.DynamicConfigValue{
+			cfg("unit", "percent"),
+			cfg("custom.axisPlacement", "right"),
+			cfg("custom.axisLabel", "Batterinivå (SOC)"),
+			cfg("custom.axisSoftMin", 0),
+			cfg("custom.axisSoftMax", 100),
+			cfg("custom.fillOpacity", 0),
+			cfg("color", map[string]string{"mode": "fixed", "fixedColor": "purple"}),
+		})).
 		WithPanel(tsPanel("Unknown Usage", unitKWh, 9, common.StackingModeNone,
 			q(unknown, "Unknown"),
 			hidden(consumed, "Total consumption"),

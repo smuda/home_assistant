@@ -174,10 +174,14 @@
         {
           "expr": "increase(homeassistant_sensor_energy_kwh{entity=\"sensor.total_consumed_energy\"} [1h]) - on() increase(homeassistant_sensor_energy_kwh{entity=\"sensor.total_imported_energy\"} [1h])",
           "legendFormat": "Sol + batteri"
+        },
+        {
+          "expr": "homeassistant_sensor_battery_percent{entity=\"sensor.battery_level\"}",
+          "legendFormat": "Batterinivå"
         }
       ],
-      "title": "Transformer kWh",
-      "description": "Energy the Sungrow inverter delivered to the house from solar and the battery (total consumption minus grid import). This is the local generation that no longer shows up as grid import, and it is what the Unknown Usage panel now adds back.",
+      "title": "Sungrow Inverter",
+      "description": "Energy the Sungrow inverter delivered to the house from solar and the battery (total consumption minus grid import). This is the local generation that no longer shows up as grid import, and it is what the Unknown Usage panel now adds back. The battery state of charge (right axis) shows whether the battery was charging or discharging.",
       "transparent": false,
       "datasource": {
         "type": "prometheus",
@@ -214,7 +218,47 @@
             }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Batterinivå"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "Batterinivå (SOC)"
+              },
+              {
+                "id": "custom.axisSoftMin",
+                "value": 0
+              },
+              {
+                "id": "custom.axisSoftMax",
+                "value": 100
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       }
     },
     {
