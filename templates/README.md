@@ -10,7 +10,7 @@ template: !include_dir_merge_list templates/
 ```
 
 That merges the list in every `.yaml` file here into one `template:`
-list, so a new template deploys just by dropping a file in — no edit
+list, so a new template deploys just by dropping a file in -- no edit
 to `configuration.yaml`. Two rules follow from the merge:
 
 - Each `.yaml` file must be a YAML list of template blocks (starting

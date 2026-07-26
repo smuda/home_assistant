@@ -72,7 +72,7 @@ one `template:` list, so new template files deploy without touching
 `configuration.yaml` again. Each file must be a YAML list of template
 blocks (starting with `- sensor:` etc.), not its own `template:` key.
 
-Then RESTART Home Assistant once — a reload cannot register a
+Then RESTART Home Assistant once -- a reload cannot register a
 brand-new `template:` key. After that first restart, `make deploy`
 picks up new and edited files via `template.reload`, no restart
 needed.
