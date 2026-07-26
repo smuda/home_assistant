@@ -1,0 +1,115 @@
+# Electricity price incl. energy tax and grid tariff (SE3)
+# =========================================================
+# TEMPLATE SENSORS, not automations. They cannot be pasted into the
+# automation editor.
+#
+# This file is the VALUE of the `template:` key — a list — so it does
+# NOT carry a top-level `template:` line of its own. configuration.yaml
+# pulls in every .yaml file in this directory and merges their lists:
+#
+#   template: !include_dir_merge_list templates/
+#
+# So each file here must be a YAML list of template blocks (starting
+# with `- sensor:` / `- binary_sensor:` etc.), never its own
+# `template:` key. README.md and other non-.yaml files are ignored.
+#
+# New template platform sensors need a RESTART the first time; later
+# edits reload with `template.reload` (make deploy does this).
+#
+# Two sensors, single source of truth
+# -----------------------------------
+#   sensor.elnatsavgift_aktuell         -- the grid transfer fee in
+#                                          effect right now (all the
+#                                          time-of-use and working-day
+#                                          logic lives HERE only).
+#   sensor.nordpool_se3_inkl_skatt_o_nat -- the full imported-kWh cost.
+#                                          REUSES elnatsavgift_aktuell and
+#                                          adds spot + energy tax (DRY:
+#                                          tariff logic not duplicated).
+#                                          Its name is set so the slug is
+#                                          this exact id (Energy dashboard
+#                                          depends on it).
+#
+# Full cost = spot + energy tax + grid fee   (all incl. 25 % VAT)
+#
+# Component breakdown (öre/kWh ex VAT -> SEK/kWh incl VAT):
+#   - Energy tax:      36.0  -> 0.45      (Vattenfall invoice)
+#   - Grid, high:      76.5  -> 0.95625
+#   - Grid, low:       30.5  -> 0.38125
+#   - Trader markup:    0                 (current contract adds none)
+#
+# Grid tariff is HIGH only when ALL hold:
+#   - month in {Jan, Feb, Mar, Nov, Dec}
+#   - it is a working day (see below)
+#   - hour 06:00-21:59
+# Otherwise LOW.
+#
+# Working-day logic (holiday precision)
+# -------------------------------------
+# The grid company bills these weekday holidays as LOW tariff:
+#   nyårsdagen, trettondedag jul, långfredag, annandag påsk,
+#   julafton, juldagen, annandag jul, nyårsafton.
+#
+# The Workday integration (binary_sensor.workday_sensor_se, country
+# Sweden) is the single source of truth for working days. Verified
+# against the `holidays` library it uses: within the high-tariff
+# months it flags exactly the grid company's list and no extra days,
+# including the moving Easter days.
+#
+# Julafton (24 Dec) and nyårsafton (31 Dec) are NOT red days in the
+# holidays library, so they are added explicitly in the Workday
+# config's `add_holidays` (maintained through 2030 — extend it there,
+# not here, since other automations share the same sensor). Workday's
+# add_holidays does not recur, so each year must be listed.
+#
+# If binary_sensor.workday_sensor_se is missing/unavailable the
+# template falls back to a plain Mon-Fri check, so it stays defined
+# (that fallback does not know about holidays — a degraded edge case
+# only while the sensor is down).
+#
+# Assumptions to re-check if the invoice stops matching
+# -----------------------------------------------------
+#   - sensor.nord_pool_se3_aktuellt_pris is already VAT-inclusive.
+#     If the Nordpool integration excludes VAT, change `spot` to
+#     `spot * 1.25`.
+#   - Constants are öre ex VAT multiplied by 1.25; update the öre
+#     value, not the product.
+#
+# now() makes HA re-render every minute, so the 06:00 / 22:00 switch
+# and the midnight workday flip take effect within a minute.
+
+- sensor:
+    # Single source of truth for the time-of-use grid tariff.
+    - name: "Elnätsavgift aktuell"
+      unique_id: elnatsavgift_aktuell
+      unit_of_measurement: "SEK/kWh"
+      state_class: measurement
+      icon: mdi:transmission-tower-import
+      state: >
+        {% set moms = 1.25 %}
+        {% set nat_hog = 0.765 * moms %}
+        {% set nat_lag = 0.305 * moms %}
+        {% set vinter = now().month in [1, 2, 3, 11, 12] %}
+        {% set wd = states('binary_sensor.workday_sensor_se') %}
+        {% set vardag = (wd == 'on') if wd in ['on', 'off'] else (now().weekday() < 5) %}
+        {% set dagtid = 6 <= now().hour < 22 %}
+        {{ (nat_hog if (vinter and vardag and dagtid) else nat_lag) | round(5) }}
+
+    # Full imported-kWh cost; reuses the grid-tariff sensor above.
+    # Name is chosen so its slug is the entity_id the Energy dashboard
+    # already uses (sensor.nordpool_se3_inkl_skatt_o_nat), so the id is
+    # reproduced from this repo on a clean reinstall — a UI entity-id
+    # override would live only in .storage and be lost.
+    - name: "Nordpool SE3 inkl skatt o nät"
+      unique_id: nordpool_se3_inkl_skatt_o_nat
+      unit_of_measurement: "SEK/kWh"
+      state_class: measurement
+      icon: mdi:transmission-tower
+      state: >
+        {% set spot = states('sensor.nord_pool_se3_aktuellt_pris') | float(0) %}
+        {% set energiskatt = 0.36 * 1.25 %}
+        {% set nat = states('sensor.elnatsavgift_aktuell') | float(0) %}
+        {{ (spot + nat + energiskatt) | round(2) }}
+      availability: >
+        {{ states('sensor.nord_pool_se3_aktuellt_pris') not in
+           ['unknown', 'unavailable', 'none'] }}
