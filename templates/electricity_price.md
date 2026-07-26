@@ -9,15 +9,6 @@ directory for how the templates are included and deployed.
 
 ## Why this exists
 
-The house runs a battery whose charge/discharge is steered by an
-external optimiser (1KOMMA5) that plans against the Nord Pool spot
-price alone. But an imported kWh actually costs spot plus a fixed
-adder of about 0.94 kr/kWh -- energy tax and grid transfer -- that you
-never get back when you export. A spot-only view is blind to that
-asymmetry, which showed up in the data as the battery selling to the
-grid at the morning spot peak and occasionally grid-charging at
-expensive hours.
-
 These sensors expose the true per-kWh import cost so automations (and
 the human reading a dashboard) can reason about the price that is
 actually paid, not just the raw spot.
