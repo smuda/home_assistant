@@ -25,11 +25,11 @@ sequence:
     data:
       brightness_pct: 30
       rgbw_color: >-
-        {%- if states('sensor.nord_pool_se3_aktuellt_pris') | float < 0.5 %}
+        {%- if states('sensor.nordpool_se3_inkl_skatt_o_nat') | float < 1.000 %}
         {{ green }}
-        {%- elif states('sensor.nord_pool_se3_aktuellt_pris') | float < 1.0 %}
+        {%- elif states('sensor.nordpool_se3_inkl_skatt_o_nat') | float < 1.500 %}
         {{ yellow }}
-        {%- elif states('sensor.nord_pool_se3_aktuellt_pris') | float < 2.0 %}
+        {%- elif states('sensor.nordpool_se3_inkl_skatt_o_nat') | float < 2.500 %}
         {{ orange }}
         {%- else %}
         {{ red }}
