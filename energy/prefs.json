@@ -1,0 +1,28 @@
+{
+  "energy_sources": [
+    {
+      "type": "grid",
+      "cost_adjustment_day": 0.0,
+      "stat_energy_from": "sensor.p1_meter_total_elimport",
+      "stat_cost": null,
+      "entity_energy_price": "sensor.nordpool_se3_inkl_skatt_o_nat",
+      "number_energy_price": null,
+      "stat_energy_to": "sensor.p1_meter_total_elexport",
+      "stat_compensation": null,
+      "entity_energy_price_export": "sensor.elexport_ersattning",
+      "number_energy_price_export": null
+    },
+    {
+      "type": "solar",
+      "stat_energy_from": "sensor.total_pv_generation",
+      "config_entry_solar_forecast": null
+    },
+    {
+      "type": "battery",
+      "stat_energy_to": "sensor.total_battery_charge",
+      "stat_energy_from": "sensor.total_battery_discharge"
+    }
+  ],
+  "device_consumption": [],
+  "device_consumption_water": []
+}

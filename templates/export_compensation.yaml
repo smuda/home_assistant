@@ -1,0 +1,22 @@
+# Electricity export compensation (SE3)
+# ======================================
+# One template sensor: what you are paid per exported kWh. Nord Pool
+# spot plus a fixed 10.4 öre/kWh grid feed-in benefit
+# (elnätsersättning). Used as the Energy dashboard's return-to-grid
+# price. See export_compensation.md.
+#
+# This file is the VALUE of the `template:` key -- a list -- pulled in
+# by `template: !include_dir_merge_list templates/` (see README.md).
+
+- sensor:
+    - name: "Elexport ersättning"
+      unique_id: elexport_ersattning
+      unit_of_measurement: "SEK/kWh"
+      state_class: measurement
+      icon: mdi:transmission-tower-export
+      state: >
+        {% set spot = states('sensor.nord_pool_se3_aktuellt_pris') | float(0) %}
+        {{ (spot + 0.104) | round(4) }}
+      availability: >
+        {{ states('sensor.nord_pool_se3_aktuellt_pris') not in
+           ['unknown', 'unavailable', 'none'] }}
