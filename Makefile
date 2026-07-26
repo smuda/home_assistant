@@ -28,17 +28,23 @@ SSH   := ssh -i $(HA_SSH_KEY) -o StrictHostKeyChecking=accept-new
 # created up front by deploy-blueprint via a remote sudo mkdir -p.
 RSYNC := rsync -az --rsync-path='sudo rsync' -e '$(SSH)'
 
-BLUEPRINT_SRC  := automations/avfuktare/tank_full_notify.blueprint.yaml
+BLUEPRINT_SRC  := blueprints/automation/smuda/tank_full_notify.blueprint.yaml
 BLUEPRINT_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/blueprints/automation/smuda/
 
-# Template sensors. configuration.yaml must include this dir once, via
-#   template: !include templates/electricity_price.yaml
+# Template sensors. configuration.yaml includes the dir once, via
+#   template: !include_dir_merge_list templates/
 # and HA must be RESTARTED that first time (a reload cannot register a
 # brand-new `template:` key). After that, edits reload without restart.
 TEMPLATES_SRC  := templates/
 TEMPLATES_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/templates/
 
-.PHONY: deploy deploy-blueprint deploy-templates reload-automations reload-templates check-ssh
+# Platform/filter sensors, included via
+#   sensor: !include_dir_merge_list sensors/
+# Platform sensors need a RESTART to (re)load, not just a reload.
+SENSORS_SRC  := sensors/
+SENSORS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/sensors/
+
+.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors reload-automations reload-templates check-ssh
 
 check-ssh:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'echo SSH OK on $$(hostname)' \
@@ -51,6 +57,28 @@ deploy-blueprint:
 deploy-templates:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/templates'
 	$(RSYNC) $(TEMPLATES_SRC) $(TEMPLATES_DEST)
+
+# Automations are one-per-file, kept in subdirs (avfuktare, golvvarme,
+# zaptec, ...) for readability. HA loads them flat via
+#   automation: !include_dir_list automations/
+# so deploy FLATTENS every .yaml into /config/automations/ (READMEs and
+# other non-.yaml are skipped). --delete prunes automations removed from
+# the repo. Basenames must be unique across the subdirs.
+# mktemp -d is 0700, and rsync -a copies that to /config/automations/,
+# leaving it unreadable by the HA core process (a different uid) so zero
+# automations load. macOS rsync 2.6.9 has no --chmod, so make the stage
+# world-readable before syncing and chmod the remote dir as a guarantee.
+deploy-automations:
+	@stage=$$(mktemp -d); chmod 755 $$stage; \
+	  find automations -name '*.yaml' -exec cp {} $$stage/ \; ; \
+	  $(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/automations'; \
+	  $(RSYNC) --delete $$stage/ $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/automations/; \
+	  $(SSH) $(HA_USER)@$(HA_HOST) 'sudo chmod 755 $(HA_CONFIG_DIR)/automations'; \
+	  rm -rf $$stage
+
+deploy-sensors:
+	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/sensors'
+	$(RSYNC) $(SENSORS_SRC) $(SENSORS_DEST)
 
 reload-automations:
 	@curl -sf -X POST \
@@ -68,5 +96,6 @@ reload-templates:
 	  && echo "template entities reloaded" \
 	  || { echo "template reload failed (first deploy? add the include and RESTART HA once)"; exit 1; }
 
-deploy: deploy-blueprint deploy-templates reload-automations reload-templates
-	@echo "Deployed blueprint(s) + templates and reloaded on $(HA_HOST)."
+deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors reload-automations reload-templates
+	@echo "Deployed blueprint + templates + automations + sensors on $(HA_HOST)."
+	@echo "Note: changed platform sensors under sensors/ need a HA restart."
