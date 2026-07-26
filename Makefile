@@ -50,7 +50,15 @@ SENSORS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/sensors/
 NOTIFY_SRC  := notify/
 NOTIFY_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/notify/
 
-.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify reload-automations reload-templates check-ssh
+# Scripts, one-per-file, included via
+#   script: !include_dir_named scripts/
+# so each file's basename becomes the script id. Unlike platform
+# sensors and notify groups, scripts hot-reload via script.reload with
+# no restart.
+SCRIPTS_SRC  := scripts/
+SCRIPTS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/scripts/
+
+.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts reload-automations reload-templates reload-scripts check-ssh
 
 check-ssh:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'echo SSH OK on $$(hostname)' \
@@ -90,6 +98,10 @@ deploy-notify:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/notify'
 	$(RSYNC) $(NOTIFY_SRC) $(NOTIFY_DEST)
 
+deploy-scripts:
+	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/scripts'
+	$(RSYNC) $(SCRIPTS_SRC) $(SCRIPTS_DEST)
+
 reload-automations:
 	@curl -sf -X POST \
 	  -H "Authorization: Bearer $$(tr -d '\r\n' < $(HA_TOKEN_FILE))" \
@@ -106,6 +118,14 @@ reload-templates:
 	  && echo "template entities reloaded" \
 	  || { echo "template reload failed (first deploy? add the include and RESTART HA once)"; exit 1; }
 
-deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify reload-automations reload-templates
-	@echo "Deployed blueprint + templates + automations + sensors + notify on $(HA_HOST)."
+# Reloads script entities without a restart.
+reload-scripts:
+	@curl -sf -X POST \
+	  -H "Authorization: Bearer $$(tr -d '\r\n' < $(HA_TOKEN_FILE))" \
+	  $(HA_URL)/api/services/script/reload >/dev/null \
+	  && echo "scripts reloaded" \
+	  || { echo "script reload failed (check token/URL)"; exit 1; }
+
+deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts reload-automations reload-templates reload-scripts
+	@echo "Deployed blueprint + templates + automations + sensors + notify + scripts on $(HA_HOST)."
 	@echo "Note: changed platform sensors and notify groups need a HA restart."
