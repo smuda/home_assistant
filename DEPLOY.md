@@ -51,12 +51,36 @@ make deploy      # rsync blueprint(s) + reload automations
 
 `make deploy` ships:
 
-- `automations/avfuktare/tank_full_notify.blueprint.yaml` to
-  `/config/blueprints/automation/smuda/`, then `automation.reload`.
+- `blueprints/automation/smuda/tank_full_notify.blueprint.yaml` to
+  `/config/blueprints/automation/smuda/`.
 - the `templates/` directory to `/config/templates/`, then
   `template.reload`.
+- every `.yaml` under `automations/` (kept in subdirs for
+  readability) FLATTENED into `/config/automations/`, with `--delete`
+  so removed automations are pruned, then `automation.reload`.
+- the `sensors/` directory to `/config/sensors/`.
 
 Add more files by extending the Makefile.
+
+## Automations and sensors (one-time step)
+
+Automations and platform/filter sensors use the same directory model
+as templates. In the live `configuration.yaml`:
+
+```yaml
+automation: !include_dir_list automations/
+sensor: !include_dir_merge_list sensors/
+```
+
+`automation` uses `!include_dir_list` because each file holds ONE
+automation (a dict); `sensor` uses `!include_dir_merge_list` because
+each file holds a LIST of sensor configs. Deploy flattens the
+automation subdirs into `/config/automations/`, so basenames must be
+unique across `avfuktare/`, `golvvärme/`, `zaptec/`, etc.
+
+RESTART Home Assistant once after adding these keys. Automations then
+reload live via `automation.reload` on each deploy, but changed
+platform sensors under `sensors/` need a restart (no reload service).
 
 ## Template sensors (one-time step)
 

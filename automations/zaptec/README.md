@@ -156,7 +156,8 @@ transient spike from the P1 meter (a one-sample blip while the car
 draws far less) could otherwise trigger a false stop — the very
 abort we are trying to avoid. To prevent that, `P1_phase_current`
 above is read from filtered sensors
-(`sensor.p1_fas_{1,2,3}_filtrerad`, see `p1_filtered_sensors.yaml`):
+(`sensor.p1_fas_{1,2,3}_filtrerad`, see
+`../../sensors/p1_filtered_sensors.yaml`):
 a 20-second moving average dilutes a one-sample spike below the
 stop and emergency thresholds while still tracking real, sustained
 load. The normal current-adjustment path is already noise-tolerant
@@ -218,11 +219,12 @@ that with a normally finished charge.
 
 ### Filtered P1 sensors
 
-`p1_filtered_sensors.yaml` defines three `filter` sensors that clean
-the P1 phase currents (a 20-second moving average). They are sensor
-platforms, not automations, so they go in
-`configuration.yaml` under `sensor:` (or a `!include` / package) and
-need a Home Assistant restart, not just an automation reload.
+`sensors/p1_filtered_sensors.yaml` (repo root) defines three `filter`
+sensors that clean the P1 phase currents (a 20-second moving
+average). They are platform sensors, not automations, loaded via
+`sensor: !include_dir_merge_list sensors/` in `configuration.yaml`
+and shipped by `make deploy`. Changing them needs a Home Assistant
+restart, not just an automation reload.
 Confirm the resulting entity ids are `sensor.p1_fas_1_filtrerad`,
 `_2_`, `_3_` (Home Assistant derives them from the friendly names).
 Until they exist the automation falls back to the raw P1 sensors.
@@ -265,7 +267,7 @@ Edit the `variables` block in `Dynamic_fuse_protection.yaml`:
 - `ev_min` / `ev_max` — 6 and 16 (do not exceed the installer cap).
 
 The moving-average `window_size` for the noise filter lives in
-`p1_filtered_sensors.yaml`, not here.
+`sensors/p1_filtered_sensors.yaml`, not here.
 
 ## Caveats
 
@@ -302,7 +304,7 @@ The moving-average `window_size` for the noise filter lives in
 
 ## Testing
 
-0. Add `p1_filtered_sensors.yaml` to `configuration.yaml`, restart,
+0. Deploy `sensors/p1_filtered_sensors.yaml` (`make deploy`), restart,
    and confirm `sensor.p1_fas_{1,2,3}_filtrerad` exist and track the
    raw P1 sensors (smoother, not stuck).
 1. Plug in and start charging; confirm `max_laddstrom` settles at

@@ -103,11 +103,11 @@ Repot är publikt, så när filen är pushad till GitHub:
 1. Settings → Automations & Scenes → fliken Blueprints.
 2. Klicka Import blueprint (längst ner till höger).
 3. Klistra in URL:en:
-   `https://github.com/smuda/home_assistant/blob/main/automations/avfuktare/tank_full_notify.blueprint.yaml`
+   `https://github.com/smuda/home_assistant/blob/main/blueprints/automation/smuda/tank_full_notify.blueprint.yaml`
 4. Preview → Import. Blueprinten dyker upp i listan.
 
 HA hämtar bara filen och lägger den på rätt plats själv; att den ligger
-under `automations/avfuktare/` i repot spelar ingen roll.
+under `blueprints/automation/smuda/` i repot spelar ingen roll.
 
 Alternativ B - lägg filen via File editor (om du inte vill pusha). Det
 du ser i File editor är redan innehållet i `/config`, så det finns
