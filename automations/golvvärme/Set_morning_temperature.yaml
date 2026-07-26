@@ -1,4 +1,5 @@
-alias: Set morning temperature
+id: "1761705616537"
+alias: "shower floor heating: Set morning temperature"
 description: ""
 triggers:
   - trigger: time

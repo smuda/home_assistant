@@ -1,0 +1,23 @@
+# Justerar Daikin-värmepumpens börtemperatur efter aktuellt elpris.
+# Kör vid prisförändring (Nord Pool-triggern, below 10) och var 15:e
+# minut som skydd om en förändring missas. Själva logiken ligger i
+# scriptet set_heating_temperature_from_electricity_price.
+id: "1760292557782"
+alias: Uppdatera vid prisförändring
+description: ""
+triggers:
+  - type: value
+    device_id: 0e3366739a3f265d5dec646ecbf963ce
+    entity_id: f99ce984fb47cc85cc026f6b03d8fccd
+    domain: sensor
+    trigger: device
+    below: 10
+  - trigger: time_pattern
+    hours: "*"
+    minutes: /15
+conditions: []
+actions:
+  - action: script.set_heating_temperature_from_electricity_price
+    metadata: {}
+    data: {}
+mode: single

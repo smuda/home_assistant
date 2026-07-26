@@ -8,6 +8,7 @@
 # (den var unavailable under hela full-cykeln). Prisvillkoret hindrar
 # falsklarm när prisstyrningen stänger av enheten vid dyr el.
 # Påminner var 6:e timme så länge tanken är full.
+id: "1783176750718"
 alias: Avfuktare inneförråd full - notis
 description: >-
   Larmar när Otto i inneförrådet troligen är full: Shelly-effekten

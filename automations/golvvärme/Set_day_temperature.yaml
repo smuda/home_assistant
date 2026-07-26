@@ -1,4 +1,5 @@
-alias: Set day temperatore
+id: "1761705768278"
+alias: "shower floor heating: Set day temperature"
 description: ""
 triggers:
   - trigger: time

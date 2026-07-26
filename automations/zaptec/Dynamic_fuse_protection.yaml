@@ -14,6 +14,7 @@
 # instead of at the cheap night hours. Let Eco decide WHEN; this only
 # limits the current once a charge is under way.
 # Requires helper: input_boolean.zaptec_fuse_paused. See README.md.
+id: "1781429136630"
 alias: Zaptec dynamic fuse protection (charge current)
 description: >-
   Limits Zaptec max charge current so no phase exceeds the main

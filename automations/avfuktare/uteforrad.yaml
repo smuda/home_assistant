@@ -8,6 +8,7 @@
 # värden. Kompressoreffekten på den här enheten kan skilja sig, så
 # verifiera dem mot en riktig full-cykel på just uteförrådsenheten och
 # justera vid behov.
+id: "1783265791475"
 alias: Avfuktare uteförråd full - notis
 description: >-
   Larmar när avfuktaren i uteförrådet troligen är full, sett på

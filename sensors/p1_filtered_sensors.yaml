@@ -1,0 +1,71 @@
+# Filtered P1 and charger phase currents for the Zaptec fuse guard
+# ================================================================
+# This file is the VALUE of the `sensor:` key -- a list -- pulled in
+# by configuration.yaml with:
+#
+#   sensor: !include_dir_merge_list sensors/
+#
+# So it must be a YAML list of sensor configs (each `- platform: ...`),
+# never its own top-level `sensor:` key. New sensor files can be
+# dropped in this directory the same way.
+#
+# These are a short (20 s) moving average of the raw phase currents.
+# The Zaptec fuse-protection automation reads them so a single P1
+# spike cannot trigger a false stop, while a real sustained load is
+# still tracked (only ~10 s late). The `outlier` filter is avoided on
+# purpose: it can reject a genuine large load step indefinitely, a
+# fail-unsafe blind spot for a fuse guard.
+#
+# Entity ids come from the friendly name slug, not the unique_id:
+# "P1 fas 1 filtrerad" -> sensor.p1_fas_1_filtrerad, and
+# "Zaptec strom fas 1 filtrerad" -> sensor.zaptec_strom_fas_1_filtrerad
+# (not zag064494_...). Platform sensors need a RESTART to (re)load,
+# an automation/template reload is not enough.
+
+- platform: filter
+  name: "P1 fas 1 filtrerad"
+  unique_id: p1_fas_1_filtrerad
+  entity_id: sensor.p1_meter_strom_fas_1
+  filters:
+    - filter: time_simple_moving_average
+      window_size: "00:00:20"
+
+- platform: filter
+  name: "P1 fas 2 filtrerad"
+  unique_id: p1_fas_2_filtrerad
+  entity_id: sensor.p1_meter_strom_fas_2
+  filters:
+    - filter: time_simple_moving_average
+      window_size: "00:00:20"
+
+- platform: filter
+  name: "P1 fas 3 filtrerad"
+  unique_id: p1_fas_3_filtrerad
+  entity_id: sensor.p1_meter_strom_fas_3
+  filters:
+    - filter: time_simple_moving_average
+      window_size: "00:00:20"
+
+- platform: filter
+  name: "Zaptec strom fas 1 filtrerad"
+  unique_id: zag064494_strom_fas_1_filtrerad
+  entity_id: sensor.zag064494_strom_fas_1
+  filters:
+    - filter: time_simple_moving_average
+      window_size: "00:00:20"
+
+- platform: filter
+  name: "Zaptec strom fas 2 filtrerad"
+  unique_id: zag064494_strom_fas_2_filtrerad
+  entity_id: sensor.zag064494_strom_fas_2
+  filters:
+    - filter: time_simple_moving_average
+      window_size: "00:00:20"
+
+- platform: filter
+  name: "Zaptec strom fas 3 filtrerad"
+  unique_id: zag064494_strom_fas_3_filtrerad
+  entity_id: sensor.zag064494_strom_fas_3
+  filters:
+    - filter: time_simple_moving_average
+      window_size: "00:00:20"

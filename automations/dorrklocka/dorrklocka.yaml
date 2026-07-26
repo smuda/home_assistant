@@ -1,0 +1,16 @@
+# Notis till telefoner nar dorrklockans kamera larmar (doorbell-event).
+id: "1766981229655"
+alias: Doorbell-notify phones
+description: ""
+triggers:
+  - trigger: state
+    entity_id:
+      - event.027960_doorbell_camera_doorbell_message
+conditions: []
+actions:
+  - action: notify.mobile_app_johns_iphone_13
+    metadata: {}
+    data:
+      message: Det ringer på dörren
+      title: Doorbell
+mode: single
