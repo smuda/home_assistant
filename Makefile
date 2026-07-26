@@ -31,7 +31,14 @@ RSYNC := rsync -az --rsync-path='sudo rsync' -e '$(SSH)'
 BLUEPRINT_SRC  := automations/avfuktare/tank_full_notify.blueprint.yaml
 BLUEPRINT_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/blueprints/automation/smuda/
 
-.PHONY: deploy deploy-blueprint reload-automations check-ssh
+# Template sensors. configuration.yaml must include this dir once, via
+#   template: !include templates/electricity_price.yaml
+# and HA must be RESTARTED that first time (a reload cannot register a
+# brand-new `template:` key). After that, edits reload without restart.
+TEMPLATES_SRC  := templates/
+TEMPLATES_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/templates/
+
+.PHONY: deploy deploy-blueprint deploy-templates reload-automations reload-templates check-ssh
 
 check-ssh:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'echo SSH OK on $$(hostname)' \
@@ -41,6 +48,10 @@ deploy-blueprint:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/blueprints/automation/smuda'
 	$(RSYNC) $(BLUEPRINT_SRC) $(BLUEPRINT_DEST)
 
+deploy-templates:
+	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/templates'
+	$(RSYNC) $(TEMPLATES_SRC) $(TEMPLATES_DEST)
+
 reload-automations:
 	@curl -sf -X POST \
 	  -H "Authorization: Bearer $$(tr -d '\r\n' < $(HA_TOKEN_FILE))" \
@@ -48,5 +59,14 @@ reload-automations:
 	  && echo "automations reloaded" \
 	  || { echo "reload failed (check token/URL)"; exit 1; }
 
-deploy: deploy-blueprint reload-automations
-	@echo "Deployed blueprint(s) and reloaded automations on $(HA_HOST)."
+# Reloads YAML template entities without a restart. Only works once the
+# `template:` include exists and HA has been restarted at least once.
+reload-templates:
+	@curl -sf -X POST \
+	  -H "Authorization: Bearer $$(tr -d '\r\n' < $(HA_TOKEN_FILE))" \
+	  $(HA_URL)/api/services/template/reload >/dev/null \
+	  && echo "template entities reloaded" \
+	  || { echo "template reload failed (first deploy? add the include and RESTART HA once)"; exit 1; }
+
+deploy: deploy-blueprint deploy-templates reload-automations reload-templates
+	@echo "Deployed blueprint(s) + templates and reloaded on $(HA_HOST)."
