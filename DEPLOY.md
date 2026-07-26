@@ -49,10 +49,38 @@ make check-ssh   # verify the channel is up
 make deploy      # rsync blueprint(s) + reload automations
 ```
 
-`make deploy` currently ships
-`automations/avfuktare/tank_full_notify.blueprint.yaml` to
-`/config/blueprints/automation/smuda/` and then calls
-`automation.reload`. Add more files by extending the Makefile.
+`make deploy` ships:
+
+- `automations/avfuktare/tank_full_notify.blueprint.yaml` to
+  `/config/blueprints/automation/smuda/`, then `automation.reload`.
+- the `templates/` directory to `/config/templates/`, then
+  `template.reload`.
+
+Add more files by extending the Makefile.
+
+## Template sensors (one-time step)
+
+Template entities under `templates/` need a single manual step the
+first time. In the live `configuration.yaml`, add:
+
+```yaml
+template: !include_dir_merge_list templates/
+```
+
+This merges the list in every `.yaml` file under `templates/` into
+one `template:` list, so new template files deploy without touching
+`configuration.yaml` again. Each file must be a YAML list of template
+blocks (starting with `- sensor:` etc.), not its own `template:` key.
+
+Then RESTART Home Assistant once — a reload cannot register a
+brand-new `template:` key. After that first restart, `make deploy`
+picks up new and edited files via `template.reload`, no restart
+needed.
+
+The electricity-price template also depends on the Workday
+integration: Settings -> Devices & services -> Add integration ->
+Workday, Country = Sweden. Without it the template falls back to a
+plain Mon-Fri check.
 
 Overrides, if anything differs from the defaults:
 
