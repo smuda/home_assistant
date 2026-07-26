@@ -1,0 +1,23 @@
+# Satter kostnadslampornas farg efter aktuellt elpris.
+# Triggern forsvann i automations-refaktoreringen 26 juli 2026, sa
+# lamporna frystes pa gron. Denna automation aterinfor den: kor vid
+# varje prisandring (state-triggern nedan) och var 15:e minut som
+# skydd om en andring missas -- samma monster som varmepumpens
+# prisuppdatering. Sjalva farglogiken ligger i scriptet
+# set_lamp_color_from_electricity_price, som laser
+# sensor.nordpool_se3_inkl_skatt_o_nat (full kostnad inkl skatt o nat).
+id: "1761586800000"
+alias: Uppdatera lampfarg vid prisandring
+description: ""
+triggers:
+  - trigger: state
+    entity_id:
+      - sensor.nordpool_se3_inkl_skatt_o_nat
+  - trigger: time_pattern
+    minutes: /15
+conditions: []
+actions:
+  - action: script.set_lamp_color_from_electricity_price
+    metadata: {}
+    data: {}
+mode: single

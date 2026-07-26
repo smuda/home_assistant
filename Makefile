@@ -54,7 +54,8 @@ NOTIFY_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/notify/
 #   script: !include_dir_named scripts/
 # so each file's basename becomes the script id. Unlike platform
 # sensors and notify groups, scripts hot-reload via script.reload with
-# no restart.
+# no restart. scripts/_wip/ holds unfinished drafts; it is excluded from
+# the deploy so a half-written script never reaches the live host.
 SCRIPTS_SRC  := scripts/
 SCRIPTS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/scripts/
 
@@ -100,7 +101,7 @@ deploy-notify:
 
 deploy-scripts:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/scripts'
-	$(RSYNC) $(SCRIPTS_SRC) $(SCRIPTS_DEST)
+	$(RSYNC) --exclude='_wip/' $(SCRIPTS_SRC) $(SCRIPTS_DEST)
 
 reload-automations:
 	@curl -sf -X POST \

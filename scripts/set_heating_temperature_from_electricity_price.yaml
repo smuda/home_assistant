@@ -12,11 +12,14 @@ sequence:
         {%- elif states('sensor.nord_pool_se3_aktuellt_pris') | float < 2.0 %}
         {{ normal_temperature - 2 }}
         {%- else %}
-        {{ normal_temperature - 4 }}
+        {{ normal_temperature - 2 }}
         {%- endif %}
     target:
       entity_id:
         - climate.daikinap24848
+    # Kept disabled to mirror the live GUI state: the script is a no-op
+    # and does not command the heat pump. Flip to enable deliberately.
+    enabled: false
 fields: {}
 alias: Set heating temperature from electricity price
 description: ""

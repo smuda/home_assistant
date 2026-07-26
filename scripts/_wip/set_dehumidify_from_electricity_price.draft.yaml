@@ -1,0 +1,23 @@
+alias: set dehumidify from electricity price
+description: ""
+sequence:
+  {%- if states('sensor.nord_pool_se3_aktuellt_pris') | float < 1.0 %}
+  - action: humidifier.turn_on
+  {%- else %}
+  - action: humidifier.turn_off
+  {%- endif %}
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+        - humidifier.avfuktare
+  {%- if states('sensor.nord_pool_se3_aktuellt_pris') | float < 1.0 %}
+  - action: fan.turn_on
+  {%- else %}
+  - action: fan.turn_off
+  {%- endif %}
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+        - fan.otto_dehumidifier

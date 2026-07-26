@@ -1,12 +1,18 @@
+# Colors are rgbww (r, g, b, cold-white, warm-white) to match the WiZ
+# bulbs' native color mode. Sending plain rgbw would force HA to do a
+# lossy conversion. White channels are 0 so the status colors stay fully
+# saturated and easy to tell apart.
 variables:
   green:
     - 0
     - 255
     - 0
-    - 15
+    - 0
+    - 0
   yellow:
     - 236
     - 255
+    - 0
     - 0
     - 0
   orange:
@@ -14,8 +20,10 @@ variables:
     - 125
     - 0
     - 0
+    - 0
   red:
     - 255
+    - 0
     - 0
     - 0
     - 0
@@ -24,7 +32,7 @@ sequence:
     metadata: {}
     data:
       brightness_pct: 30
-      rgbw_color: >-
+      rgbww_color: >-
         {%- if states('sensor.nordpool_se3_inkl_skatt_o_nat') | float < 1.000 %}
         {{ green }}
         {%- elif states('sensor.nordpool_se3_inkl_skatt_o_nat') | float < 1.500 %}

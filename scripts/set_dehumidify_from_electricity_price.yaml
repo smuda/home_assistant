@@ -1,0 +1,16 @@
+sequence:
+  - action: humidifier.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+        - humidifier.avfuktare
+  - action: fan.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+        - fan.otto_dehumidifier
+fields: {}
+alias: set dehumidify from electricity price
+description: ""
