@@ -8,7 +8,7 @@ triggers:
       - event.027960_doorbell_camera_doorbell_message
 conditions: []
 actions:
-  - action: notify.mobile_app_johns_iphone_13
+  - action: notify.parents
     metadata: {}
     data:
       message: Det ringer på dörren

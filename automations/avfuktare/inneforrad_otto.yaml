@@ -32,7 +32,6 @@ use_blueprint:
     use_tank_full_sensor: true
     tank_full_sensor: binary_sensor.otto_dehumidifier_tank_full
     notify_services:
-      - notify.mobile_app_johns_iphone_13
-      - notify.mobile_app_trollunge
+      - notify.parents
     reminder_hours: 6
     notify_when_emptied: false

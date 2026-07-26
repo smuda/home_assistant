@@ -44,7 +44,13 @@ TEMPLATES_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/templates/
 SENSORS_SRC  := sensors/
 SENSORS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/sensors/
 
-.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors reload-automations reload-templates check-ssh
+# Notify groups, included via
+#   notify: !include_dir_merge_list notify/
+# Group notify configs load at startup, so they need a RESTART.
+NOTIFY_SRC  := notify/
+NOTIFY_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/notify/
+
+.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify reload-automations reload-templates check-ssh
 
 check-ssh:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'echo SSH OK on $$(hostname)' \
@@ -80,6 +86,10 @@ deploy-sensors:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/sensors'
 	$(RSYNC) $(SENSORS_SRC) $(SENSORS_DEST)
 
+deploy-notify:
+	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/notify'
+	$(RSYNC) $(NOTIFY_SRC) $(NOTIFY_DEST)
+
 reload-automations:
 	@curl -sf -X POST \
 	  -H "Authorization: Bearer $$(tr -d '\r\n' < $(HA_TOKEN_FILE))" \
@@ -96,6 +106,6 @@ reload-templates:
 	  && echo "template entities reloaded" \
 	  || { echo "template reload failed (first deploy? add the include and RESTART HA once)"; exit 1; }
 
-deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors reload-automations reload-templates
-	@echo "Deployed blueprint + templates + automations + sensors on $(HA_HOST)."
-	@echo "Note: changed platform sensors under sensors/ need a HA restart."
+deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify reload-automations reload-templates
+	@echo "Deployed blueprint + templates + automations + sensors + notify on $(HA_HOST)."
+	@echo "Note: changed platform sensors and notify groups need a HA restart."

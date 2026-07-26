@@ -1,0 +1,14 @@
+# Notify groups
+# =============
+# Included via `notify: !include_dir_merge_list notify/` in
+# configuration.yaml. This file is the VALUE of the `notify:` key -- a
+# list of notify platform configs (each `- platform: ...`), never its
+# own top-level `notify:` key. Group notify configs load at startup,
+# so changes need a HA RESTART (there is no notify reload service).
+
+# The two parents' phones. Clara's device is deliberately left out.
+- platform: group
+  name: parents
+  services:
+    - service: mobile_app_johns_iphone_13 # John
+    - service: mobile_app_trollunge # Sara

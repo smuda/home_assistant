@@ -30,7 +30,6 @@ use_blueprint:
     price_off_above: 1.0
     use_tank_full_sensor: false
     notify_services:
-      - notify.mobile_app_johns_iphone_13
-      - notify.mobile_app_trollunge   # Saras telefon
+      - notify.parents
     reminder_hours: 6
     notify_when_emptied: false
