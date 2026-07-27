@@ -1,1 +1,8 @@
 .idea
+
+# Never commit Home Assistant secrets, even the mirrored config/ copy.
+secrets.yaml
+config/secrets.yaml
+*.token
+known_devices.yaml
+ip_bans.yaml

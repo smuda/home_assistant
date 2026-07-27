@@ -1,0 +1,33 @@
+# Dehumidifier "is working" detection
+# ===================================
+# Both dehumidifiers hang on a Shelly plug that meters power. The plug
+# switch being `on` only means the socket has power -- the compressor
+# may still be idle (defrost, humidistat satisfied, standby). What Sara
+# wants to see is whether the unit is ACTUALLY dehumidifying, which the
+# power draw tells us: a running compressor pulls ~150-230 W, standby is
+# a few watts. So "arbetar" = plug power over a threshold.
+#
+# Part of the merged `template:` list (see electricity_price.yaml for
+# the file-format rules). Threshold 40 W sits well above standby and
+# well below the ~200 W running draw.
+
+- binary_sensor:
+    - name: "Avfuktare inneförråd arbetar"
+      unique_id: avfuktare_inneforrad_arbetar
+      device_class: running
+      icon: mdi:water-percent
+      state: >
+        {{ states('sensor.shellyplugsg3_e4b063f90d0c_effekt') | float(0) > 40 }}
+      availability: >
+        {{ states('sensor.shellyplugsg3_e4b063f90d0c_effekt')
+           not in ['unknown', 'unavailable', 'none'] }}
+
+    - name: "Avfuktare uteförråd arbetar"
+      unique_id: avfuktare_uteforrad_arbetar
+      device_class: running
+      icon: mdi:water-percent
+      state: >
+        {{ states('sensor.uteforrad_plug_avfuktare_uteforrad_effekt') | float(0) > 40 }}
+      availability: >
+        {{ states('sensor.uteforrad_plug_avfuktare_uteforrad_effekt')
+           not in ['unknown', 'unavailable', 'none'] }}

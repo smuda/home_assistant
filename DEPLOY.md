@@ -59,8 +59,59 @@ make deploy      # rsync blueprint(s) + reload automations
   readability) FLATTENED into `/config/automations/`, with `--delete`
   so removed automations are pruned, then `automation.reload`.
 - the `sensors/` directory to `/config/sensors/`.
+- the `dashboards/` directory to `/config/dashboards/` (YAML-mode
+  Lovelace dashboards).
+
+It then pulls `configuration.yaml` back from the live host into
+`config/configuration.yaml` as a read-only mirror (see below).
 
 Add more files by extending the Makefile.
+
+## Dashboards (one-time step)
+
+YAML-mode dashboards live under `dashboards/` and deploy to
+`/config/dashboards/`. Each is registered in the live
+`configuration.yaml` under `lovelace:`. The built-in auto-generated
+Overview is left intact because no top-level `mode:` is set:
+
+```yaml
+lovelace:
+  dashboards:
+    home-hemma:
+      mode: yaml
+      title: Hemma
+      icon: mdi:sofa
+      show_in_sidebar: true
+      filename: dashboards/home.yaml
+```
+
+The dashboard url slug (`home-hemma`) MUST contain a hyphen -- HA
+rejects a slug without one. A brand-new dashboard needs one HA RESTART
+to register the `lovelace:` entry; after that, edits to the YAML file
+show on a browser refresh (there is no reload service for YAML
+dashboards). Each user selects their own default under Profile ->
+Default dashboard, so the admin Overview and this everyday view can
+coexist without anyone compromising.
+
+The "Hemma" dashboard uses the ApexCharts custom card (installed via
+HACS) for the electricity-price curve. It reads the `today` /
+`tomorrow` attributes of `sensor.elpris_serie_se3`
+(`templates/electricity_price_series.yaml`), which fetches the day-ahead
+prices via the `nordpool.get_prices_for_date` action because the
+official Nord Pool integration exposes no raw hourly arrays.
+
+## Config mirror (configuration.yaml)
+
+This repo is NOT the source of truth for `configuration.yaml`. Edits are
+made on the live host (File editor or SSH). `make deploy` (and
+`make pull-config`) fetch the live file back into
+`config/configuration.yaml` so its history is visible in git and diffs
+over time are easy to see. The mirror is read-only -- deploy never
+pushes it back.
+
+`pull-config` refuses to write if it finds an inline secret (anything
+other than a `!secret` reference), so credentials never reach git.
+Review `git diff config/` before committing.
 
 ## Automations and sensors (one-time step)
 

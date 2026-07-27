@@ -1,0 +1,175 @@
+# "Hemma" dashboard -- an everyday overview, not the admin view.
+# =============================================================
+# YAML-mode dashboard, deployed by `make deploy-dashboards` and wired
+# into configuration.yaml under `lovelace: dashboards: home:`. The
+# built-in auto-generated Overview is left untouched; this is an extra
+# dashboard chosen per user as their default (Profile -> Default
+# dashboard). See DEPLOY.md.
+#
+# The price curve uses the custom ApexCharts card (installed via HACS)
+# reading the `today` / `tomorrow` attributes of sensor.elpris_serie_se3
+# (templates/electricity_price_series.yaml), each an array of
+# [epoch_ms, full_price_sek_per_kwh].
+
+title: Home
+views:
+  - title: Home
+    path: hem
+    icon: mdi:sofa
+    cards:
+      # ---- Elpris -------------------------------------------------
+      - type: custom:apexcharts-card
+        graph_span: 48h
+        span:
+          start: day
+        now:
+          show: true
+          label: Nu
+        header:
+          show: true
+          title: Elpris kr/kWh (inkl skatt och nät)
+          show_states: false
+        yaxis:
+          - decimals: 2
+            min: 0
+        series:
+          - entity: sensor.elpris_serie_se3
+            name: Idag
+            type: area
+            curve: stepline
+            stroke_width: 2
+            opacity: 0.25
+            # extend_to is a per-series option in apexcharts-card v2.2.3
+            # (false | end | now). Default "end" would hold today's last
+            # value (23:45) flat across the rest of the 48h span, running
+            # the orange line on over tomorrow. false stops it at 23:45.
+            extend_to: false
+            # Hide the legend value -- the entity state is an interval
+            # count, not a price, so showing it (with the "intervals"
+            # unit) would be misleading. The curve itself carries kr/kWh.
+            show:
+              legend_value: false
+            data_generator: |
+              return entity.attributes.today || [];
+          - entity: sensor.elpris_serie_se3
+            name: Imorgon
+            type: area
+            curve: stepline
+            stroke_width: 2
+            opacity: 0.25
+            extend_to: false
+            show:
+              legend_value: false
+            data_generator: |
+              return entity.attributes.tomorrow || [];
+
+      - type: glance
+        title: Elpris just nu
+        columns: 3
+        entities:
+          - entity: sensor.nordpool_se3_inkl_skatt_o_nat
+            name: Fullpris nu
+          - entity: sensor.elnatsavgift_aktuell
+            name: Nätavgift nu
+          - entity: binary_sensor.nord_pool_se3_tomorrow_price_available
+            name: Morgondagen
+
+      # ---- Vader + utetemp ---------------------------------------
+      - type: weather-forecast
+        entity: weather.forecast_hem
+        forecast_type: daily
+        show_current: true
+        name: Väder hemma
+
+      - type: glance
+        title: Utetemperatur
+        columns: 2
+        entities:
+          - entity: sensor.daikinap24848_utetemperatur
+            name: Uppmätt ute
+          - entity: sensor.avfuktare_luftfuktighet
+            name: Luftfuktighet uteförråd
+
+      # ---- Sol + batteri -----------------------------------------
+      - type: glance
+        title: Solproduktion och batteri
+        columns: 3
+        entities:
+          - entity: sensor.total_dc_power
+            name: Soleffekt nu
+          - entity: sensor.load_power
+            name: Husets förbrukning
+          - entity: sensor.export_power
+            name: Effekt till nät
+          - entity: sensor.daily_pv_generation
+            name: Producerat idag
+          - entity: sensor.battery_level
+            name: Batterinivå
+          - entity: sensor.battery_power
+            name: Batterieffekt
+
+      - type: history-graph
+        title: Soleffekt idag
+        hours_to_show: 24
+        entities:
+          - entity: sensor.total_dc_power
+            name: Soleffekt
+
+      # ---- EV-laddning -------------------------------------------
+      - type: entities
+        title: EV-laddning
+        show_header_toggle: false
+        entities:
+          - entity: sensor.zag064494_laddstatus
+            name: Status
+          - entity: sensor.zag064494_laddeffekt
+            name: Laddeffekt nu
+          - entity: sensor.zag064494_laddat_denna_sessionen
+            name: Laddat denna session
+          - entity: sensor.zag064494_tilldelad_laddstrom
+            name: Tilldelad ström
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Starta laddning
+            icon: mdi:play
+            entity: button.zag064494_ateruppta_laddning
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.zag064494_ateruppta_laddning
+          - type: button
+            name: Stoppa laddning
+            icon: mdi:stop
+            entity: button.zag064494_stoppa_laddning
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.zag064494_stoppa_laddning
+
+      # ---- Avfuktare ---------------------------------------------
+      - type: entities
+        title: Avfuktare
+        show_header_toggle: false
+        entities:
+          - type: section
+            label: Inneförråd
+          - entity: binary_sensor.avfuktare_inneforrad_arbetar
+            name: Arbetar
+          - entity: sensor.shellyplugsg3_e4b063f90d0c_effekt
+            name: Effekt nu
+          - entity: switch.shellyplugsg3_e4b063f90d0c
+            name: Ström till avfuktare
+          - type: section
+            label: Uteförråd
+          - entity: binary_sensor.avfuktare_uteforrad_arbetar
+            name: Arbetar
+          - entity: sensor.uteforrad_plug_avfuktare_uteforrad_effekt
+            name: Effekt nu
+          - entity: sensor.avfuktare_luftfuktighet
+            name: Luftfuktighet
+          - entity: switch.uteforrad_plug_avfuktare_uteforrad
+            name: Ström till avfuktare

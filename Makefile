@@ -59,7 +59,27 @@ NOTIFY_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/notify/
 SCRIPTS_SRC  := scripts/
 SCRIPTS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/scripts/
 
-.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts reload-automations reload-templates reload-scripts check-ssh
+# YAML-mode dashboards, wired into configuration.yaml via
+#   lovelace:
+#     dashboards:
+#       home:
+#         mode: yaml
+#         filename: dashboards/home.yaml
+# A brand-new lovelace dashboard needs a HA RESTART once (to register
+# the entry); after that, edits show on a browser refresh -- no reload
+# service exists for YAML dashboards.
+DASHBOARDS_SRC  := dashboards/
+DASHBOARDS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/dashboards/
+
+# Local "cold" mirror of the live configuration.yaml. This repo is NOT
+# the source of truth for configuration.yaml -- edits are made on the
+# live host; `make pull-config` fetches it back so its history is
+# visible in git. pull-config refuses to write if it detects an inline
+# secret (anything other than a !secret reference), so nothing sensitive
+# lands in the repo.
+CONFIG_LOCAL := config
+
+.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-dashboards reload-automations reload-templates reload-scripts pull-config check-ssh
 
 check-ssh:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'echo SSH OK on $$(hostname)' \
@@ -103,6 +123,26 @@ deploy-scripts:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/scripts'
 	$(RSYNC) --exclude='_wip/' $(SCRIPTS_SRC) $(SCRIPTS_DEST)
 
+deploy-dashboards:
+	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/dashboards'
+	$(RSYNC) $(DASHBOARDS_SRC) $(DASHBOARDS_DEST)
+
+# Fetch the live configuration.yaml into the repo as a read-only mirror.
+# Guarded: aborts (leaving a .tmp for review) if a line looks like an
+# inline secret rather than a !secret reference, so credentials never
+# reach git. Review `git diff` before committing the result.
+pull-config:
+	@mkdir -p $(CONFIG_LOCAL)
+	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo cat $(HA_CONFIG_DIR)/configuration.yaml' \
+	  > $(CONFIG_LOCAL)/configuration.yaml.tmp
+	@if grep -Eiq '(password|passwd|token|api_key|apikey|client_secret|access_token)[[:space:]]*:[[:space:]]*[^![:space:]]' \
+	     $(CONFIG_LOCAL)/configuration.yaml.tmp; then \
+	  echo "REFUSING: possible inline secret in configuration.yaml (use !secret). Left as $(CONFIG_LOCAL)/configuration.yaml.tmp for review."; \
+	  exit 1; \
+	fi
+	@mv $(CONFIG_LOCAL)/configuration.yaml.tmp $(CONFIG_LOCAL)/configuration.yaml
+	@echo "Pulled configuration.yaml -> $(CONFIG_LOCAL)/ (review 'git diff' before committing)."
+
 reload-automations:
 	@curl -sf -X POST \
 	  -H "Authorization: Bearer $$(tr -d '\r\n' < $(HA_TOKEN_FILE))" \
@@ -127,6 +167,7 @@ reload-scripts:
 	  && echo "scripts reloaded" \
 	  || { echo "script reload failed (check token/URL)"; exit 1; }
 
-deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts reload-automations reload-templates reload-scripts
-	@echo "Deployed blueprint + templates + automations + sensors + notify + scripts on $(HA_HOST)."
+deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-dashboards reload-automations reload-templates reload-scripts pull-config
+	@echo "Deployed blueprint + templates + automations + sensors + notify + scripts + dashboards on $(HA_HOST)."
 	@echo "Note: changed platform sensors and notify groups need a HA restart."
+	@echo "Note: a brand-new YAML dashboard needs a HA restart once; later edits show on browser refresh."

@@ -1,0 +1,105 @@
+# Electricity price SERIES for today + tomorrow (SE3)
+# ===================================================
+# The scalar sensors from the official Nord Pool integration only give
+# the CURRENT hour (aktuellt/nasta/lagsta/hogsta pris). To draw a full
+# price CURVE for the rest of today and, once released ~15-16, tomorrow,
+# we fetch the hourly (actually 15-minute) list via the integration's
+# `nordpool.get_prices_for_date` action and apply the SAME full-cost
+# formula per interval that sensor.nordpool_se3_inkl_skatt_o_nat uses.
+#
+# This is a TRIGGER-based template sensor: the `action` block calls the
+# service and its `response_variable` is in scope for the `sensor`
+# templates below. See templates/electricity_price.yaml for the file
+# format rules (this file is part of the merged `template:` list and
+# carries no top-level `template:` key of its own).
+#
+# Units: get_prices_for_date returns price in SEK/MWh (verified against
+# the scalar sensors: max 1000.98 SEK/MWh == sensor ...hogsta_pris
+# 1.00098 SEK/kWh). So spot_kWh = price / 1000. The spot value is
+# already VAT-inclusive, same as sensor.nord_pool_se3_aktuellt_pris.
+#
+# DRY WARNING -- shared constants
+# -------------------------------
+# The full-cost formula duplicates the tariff constants from
+# electricity_price.yaml because that sensor can only compute the
+# CURRENT interval (it reuses sensor.elnatsavgift_aktuell), whereas the
+# curve needs the tariff for EVERY future interval. If you change any
+# constant below, change it in electricity_price.yaml too:
+#   - Energy tax:  0.36 * 1.25 = 0.45
+#   - Grid, high:  0.765 * 1.25 = 0.95625  (winter, workday, 06-22)
+#   - Grid, low:   0.305 * 1.25 = 0.38125
+# High tariff only when month in {1,2,3,11,12} AND workday AND 06<=h<22.
+# Workday: for intervals dated today we honour
+# binary_sensor.workday_sensor_se (holiday precision); for other dates
+# we fall back to a plain Mon-Fri check (a display curve does not need
+# holiday precision days ahead, and summer months are LOW regardless).
+#
+# The output attributes `today` and `tomorrow` are arrays of
+# [epoch_ms, full_price_sek_per_kwh] ready for an ApexCharts
+# data_generator. `tomorrow` is [] until the day-ahead prices release.
+
+- trigger:
+    - platform: homeassistant
+      event: start
+    - platform: time_pattern
+      minutes: "/30"
+    # Redraw the moment tomorrow's prices become available (~15-16).
+    - platform: state
+      entity_id: binary_sensor.nord_pool_se3_tomorrow_price_available
+      to: "on"
+  action:
+    # config_entry is resolved from the entity so a clean reinstall (new
+    # entry id) still works without editing this file.
+    - service: nordpool.get_prices_for_date
+      data:
+        config_entry: "{{ config_entry_id('sensor.nord_pool_se3_aktuellt_pris') }}"
+        date: "{{ now().date() }}"
+      response_variable: today_resp
+    - service: nordpool.get_prices_for_date
+      data:
+        config_entry: "{{ config_entry_id('sensor.nord_pool_se3_aktuellt_pris') }}"
+        date: "{{ (now() + timedelta(days=1)).date() }}"
+      response_variable: tomo_resp
+  sensor:
+    - name: "Elpris serie SE3"
+      unique_id: elpris_serie_se3
+      # State is a simple health/count value; the curves live in the
+      # attributes. Changes at midnight and when tomorrow releases.
+      state: >
+        {{ (today_resp.SE3 | default([]) | count)
+           + (tomo_resp.SE3 | default([]) | count) }}
+      unit_of_measurement: "intervals"
+      icon: mdi:chart-line
+      attributes:
+        tomorrow_valid: >
+          {{ (tomo_resp.SE3 | default([]) | count) > 0 }}
+        today: >
+          {% set wd_today = states('binary_sensor.workday_sensor_se') %}
+          {% set ns = namespace(out=[]) %}
+          {% for p in today_resp.SE3 | default([]) %}
+            {% set l = as_datetime(p.start) | as_local %}
+            {% set spot = p.price / 1000 %}
+            {% set vinter = l.month in [1, 2, 3, 11, 12] %}
+            {% set is_today = l.date() == now().date() %}
+            {% set vardag = (wd_today == 'on') if (is_today and wd_today in ['on', 'off']) else (l.weekday() < 5) %}
+            {% set dagtid = 6 <= l.hour < 22 %}
+            {% set nat = 0.95625 if (vinter and vardag and dagtid) else 0.38125 %}
+            {% set full = (spot + 0.45 + nat) | round(2) %}
+            {% set ns.out = ns.out + [[ (as_timestamp(l) * 1000) | int, full ]] %}
+          {% endfor %}
+          {{ ns.out }}
+        tomorrow: >
+          {% set wd_today = states('binary_sensor.workday_sensor_se') %}
+          {% set ns = namespace(out=[]) %}
+          {% for p in tomo_resp.SE3 | default([]) %}
+            {% set l = as_datetime(p.start) | as_local %}
+            {% set spot = p.price / 1000 %}
+            {% set vinter = l.month in [1, 2, 3, 11, 12] %}
+            {% set is_today = l.date() == now().date() %}
+            {% set vardag = (wd_today == 'on') if (is_today and wd_today in ['on', 'off']) else (l.weekday() < 5) %}
+            {% set dagtid = 6 <= l.hour < 22 %}
+            {% set nat = 0.95625 if (vinter and vardag and dagtid) else 0.38125 %}
+            {% set full = (spot + 0.45 + nat) | round(2) %}
+            {% set ns.out = ns.out + [[ (as_timestamp(l) * 1000) | int, full ]] %}
+          {% endfor %}
+          {{ ns.out }}

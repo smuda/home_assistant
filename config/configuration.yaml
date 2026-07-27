@@ -1,0 +1,34 @@
+homeassistant:
+  packages:
+      modbus_sungrow: !include integrations/modbus_sungrow.yaml
+      
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include_dir_list automations/
+script: !include_dir_named scripts/
+scene: !include scenes.yaml
+
+template: !include_dir_merge_list templates/
+
+prometheus:
+
+notify: !include_dir_merge_list notify/
+
+sensor: !include_dir_merge_list sensors/
+
+# Extra YAML-mode dashboard "Hemma" (repo: dashboards/home.yaml). No
+# top-level mode -> the built-in auto-generated Overview stays intact.
+# Each user picks their own default under Profile -> Default dashboard.
+lovelace:
+  dashboards:
+    home-hemma:
+      mode: yaml
+      title: Home
+      icon: mdi:sofa
+      show_in_sidebar: true
+      filename: dashboards/home.yaml
