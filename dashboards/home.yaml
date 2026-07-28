@@ -71,8 +71,8 @@ views:
             name: Fullpris nu
           - entity: sensor.elnatsavgift_aktuell
             name: Nätavgift nu
-          - entity: binary_sensor.nord_pool_se3_tomorrow_price_available
-            name: Morgondagen
+          - entity: sensor.nord_pool_se3_aktuellt_pris
+            name: Energipris nu
 
       # ---- Vader + utetemp ---------------------------------------
       - type: weather-forecast
