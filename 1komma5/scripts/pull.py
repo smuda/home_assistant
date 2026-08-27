@@ -12,8 +12,8 @@ import json, subprocess
 BASE = "http://192.168.40.20:8428/api/v1/query_range"
 STEP = "900"          # 15 min
 # Absolute window, Europe/Stockholm (CEST = UTC+2 in July).
-START = "2026-07-15T13:15:00Z"   # 2026-07-15 15:15 local
-END   = "2026-07-31T22:00:00Z"   # 2026-08-01 00:00 local
+START = "2026-07-31T22:00:00Z"   # 2026-08-01 00:00 local
+END   = "2026-08-26T22:00:00Z"   # 2026-08-27 00:00 local
 
 series = {
     "spot":   'homeassistant_sensor_unit_sek_per_kwh{entity="sensor.nord_pool_se3_aktuellt_pris"}',

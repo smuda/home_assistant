@@ -66,6 +66,12 @@ payment, not VAT-adjusted.
   beneficial; the genuine risk is the winter time-of-use grid tariff,
   which is dormant in summer and so cannot be tested from this data.
   Re-run in Nov-Mar.
+- `analysis-2026-08.md` -- preliminary evaluation on 26.0 days
+  (2026-08-01 -> 2026-08-27), covering the mid-month price spike.
+  Verdict in short: the battery nets about 10 kr/day; grid-charging at
+  2.4 kr/kWh during the spike was correct arbitrage; the measurable
+  cost of adder-blindness is 6.7 kr over the month, almost all of it
+  on one day. Winter still untested.
 - `scripts/` -- the pull and analysis scripts, so any evaluation is
   reproducible. See below.
 
