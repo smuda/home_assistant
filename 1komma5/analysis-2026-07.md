@@ -97,6 +97,36 @@ of the arithmetic, since discharge is smaller than charge.
 Net: +147 kr over 16.4 days, about 9 kr/day. The optimiser is making
 money; the 5 kr of adder-blindness above is noise against it.
 
+## What the solar was worth
+
+Priced at the moment each kWh was consumed rather than when it was
+generated. That is the point of pairing panels with a battery: solar
+made at midday, when a kWh is cheap, is spent in the evening when it
+is dear.
+
+| Where it went | kWh | kr | kr/kWh |
+|---|---|---|---|
+| Used as it was generated | 235.6 | 298.3 | 1.27 avoided |
+| Stored, used later by the house | 107.2 | 163.9 | 1.53 avoided |
+| Stored, later sold to the grid | 11.4 | 11.1 | 0.97 earned |
+| Exported as it was generated | 155.7 | 70.8 | 0.45 earned |
+| Total | 509.9 | 544 | |
+
+544 kr over 16.4 days, about 33 kr/day.
+
+The battery is what lifts the middle rows. Solar that went into it had
+no house load to serve at the time, so its alternative was export at
+0.45 kr/kWh. It came back out at 1.53. That spread, 1.08 kr/kWh over
+107.2 kWh, is about 116 kr of the 544 -- and it is the same value the
+battery P&L above counts as the battery's, seen from the other side.
+Do not add the two together.
+
+Generation is metered on the DC side while prices apply on the AC
+side, so the totals are scaled by the window's own DC-to-AC ratio,
+0.942 here (537.8 kWh AC from 570.9 kWh DC). A further 28.1 kWh of
+solar was still sitting in the battery when the window closed and is
+not valued.
+
 ## Why the summer data does not settle the concern
 
 Grid-charging at low spot and discharging into the house in the
@@ -183,10 +213,33 @@ hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh
   `sensor.battery_charging_power_signed` (+charge/-discharge),
   `sensor.p1_meter_effekt` (+import/-export),
   `sensor.battery_level` (SOC), `sensor.export_power`,
-  `sensor.total_pv_generation`,
+  `sensor.total_pv_generation`, `sensor.load_power`,
   `sensor.zag064494_laddeffekt` (EV charger power; per-bucket EV energy
   must come from the power series, not the session energy counter,
   which reports in delayed batches).
+- The solar split is economic, not physical. A kWh that charged the
+  battery while the house was importing did not reduce the bill, so it
+  counts as grid-sourced whatever the DC wiring did. Sungrow's own
+  `total_battery_charge_from_pv` answers the physical question instead
+  and gives a different, larger PV share; it is not the right basis for
+  costing.
+- Solar into the battery is traced back out with a mixing model: each
+  discharge draws the battery's current mix of PV- and grid-sourced
+  energy. Conversion losses are not charged against stored solar, since
+  charge and discharge are measured at the same plane.
+- Counter lag makes some buckets show more solar going to store and
+  export than that bucket generated, so direct use goes slightly
+  negative there. It nets out across the window: -26.9 kWh against
+  +262.4 kWh.
+- No microproduction tax reduction is applied; it has been withdrawn.
+  Export earns spot + 0.104 only.
+- The metrics history begins at this window's start, 2026-07-15 15:15,
+  with the generation counter already at 261.1 kWh. The panels predate
+  the metrics store, so the install date cannot be recovered from it.
+  These are window figures, not lifetime ones.
+- The counterfactual holds house load and battery behaviour fixed. EV
+  charging reacts to Nord Pool prices only and knows nothing about the
+  panels or the battery, so it is unaffected by their presence.
 - The P&L is marginal, not a bill. It prices each kWh at what it was
   otherwise worth at that moment, and says nothing about whether the
   battery pays for its own capital cost.

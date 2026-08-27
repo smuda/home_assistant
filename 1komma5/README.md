@@ -61,17 +61,19 @@ payment, not VAT-adjusted.
 ## Contents
 
 - `analysis-2026-07.md` -- evaluation on 16.4 days of summer data
-  (2026-07-15 15:15 -> 2026-08-01 00:00). Verdict in short: the summer
-  behaviour is mostly spot-rational, the battery nets about 9 kr/day,
-  and adder-blindness costs 5 kr over the window; the genuine risk is
-  the winter time-of-use grid tariff, which is dormant in summer and
-  so cannot be tested from this data. Re-run in Nov-Mar.
+  (2026-07-15 15:15 -> 2026-08-01 00:00). Verdict in short: the solar
+  is worth 33 kr/day and the battery nets 9 kr/day on top; the summer
+  behaviour is mostly spot-rational and adder-blindness costs 5 kr
+  over the window; the genuine risk is the winter time-of-use grid
+  tariff, which is dormant in summer and so cannot be tested from this
+  data. Re-run in Nov-Mar.
 - `analysis-2026-08.md` -- preliminary evaluation on 26.0 days
   (2026-08-01 -> 2026-08-27), covering the mid-month price spike.
-  Verdict in short: the battery nets about 10 kr/day; grid-charging at
-  2.4 kr/kWh during the spike was correct arbitrage; the one bad day
-  is an unforecastable 44 kWh EV charge, not a pricing error, and
-  costs about 3 kr. Winter still untested.
+  Verdict in short: the solar is worth 36 kr/day and the battery nets
+  about 10 kr/day; grid-charging at 2.4 kr/kWh during the spike was
+  correct arbitrage; the one bad day is an unforecastable 44 kWh EV
+  charge, not a pricing error, and costs about 3 kr. Winter still
+  untested.
 - `scripts/` -- the pull and analysis scripts, so any evaluation is
   reproducible. See below.
 
@@ -83,8 +85,9 @@ VictoriaMetrics is read-only reachable at `http://192.168.40.20:8428`
 ```
 cd 1komma5/scripts
 python3 pull.py       # writes data.csv (14 days, 15-min steps)
-python3 analyze.py    # totals, the two behaviours, hour-of-day profile
-python3 dist.py       # grid-charge spot/hour distribution + winter what-if
+python3 analyze.py    # everything: totals, the two behaviours, solar
+                      # value, battery P&L, EV sessions, hour-of-day
+                      # profile, winter what-if, spot distribution
 ```
 
 Adjust `RANGE_DAYS` / `STEP` in `pull.py` for other windows. The

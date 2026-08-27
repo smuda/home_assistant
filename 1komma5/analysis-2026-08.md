@@ -68,6 +68,42 @@ the afternoon and displaced evening import at 2.87-3.04 kr/kWh. That
 is a 0.7-0.9 kr/kWh spread that survives the adder. Buying at 2.4 kr
 looks alarming in isolation and is correct in context.
 
+## What the solar was worth
+
+Priced at the moment each kWh was consumed rather than when it was
+generated. That is the point of pairing panels with a battery: solar
+made at midday, when a kWh is cheap, is spent in the evening when it
+is dear.
+
+| Where it went | kWh | kr | kr/kWh |
+|---|---|---|---|
+| Used as it was generated | 276.7 | 416.7 | 1.51 avoided |
+| Stored, used later by the house | 183.4 | 283.9 | 1.55 avoided |
+| Stored, later sold to the grid | 57.5 | 81.3 | 1.42 earned |
+| Exported as it was generated | 276.0 | 158.0 | 0.57 earned |
+| Total | 793.6 | 940 | |
+
+940 kr over 26.0 days, about 36 kr/day, against July's 33.
+
+The battery is what lifts the middle rows. Solar that went into it had
+no house load to serve at the time, so its alternative was export at
+0.57 kr/kWh. It came back out at 1.55. That spread, 0.98 kr/kWh over
+183.4 kWh, is about 180 kr of the 940 -- and it is the same value the
+battery P&L above counts as the battery's, seen from the other side.
+Do not add the two together.
+
+Note how much better the stored kWh did this month than in July: 1.55
+against 1.53 on the way out is barely changed, but the export
+alternative rose from 0.45 to 0.57 while three times as much solar
+went through the battery. The mid-month price spike is why the
+evenings were worth so much.
+
+Generation is metered on the DC side while prices apply on the AC
+side, so the totals are scaled by the window's own DC-to-AC ratio,
+0.925 here (807.3 kWh AC from 872.6 kWh DC). A further 13.6 kWh of
+solar was still sitting in the battery when the window closed and is
+not valued.
+
 ## 2026-08-17: an EV charge, not a pricing error
 
 The one day in the window that looks bad has a load explanation, not a
@@ -215,10 +251,31 @@ hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh
   `sensor.battery_charging_power_signed` (+charge/-discharge),
   `sensor.p1_meter_effekt` (+import/-export),
   `sensor.battery_level` (SOC), `sensor.export_power`,
-  `sensor.total_pv_generation`,
+  `sensor.total_pv_generation`, `sensor.load_power`,
   `sensor.zag064494_laddeffekt` (EV charger power; per-bucket EV energy
   must come from the power series, not the session energy counter,
   which reports in delayed batches).
+- The solar split is economic, not physical. A kWh that charged the
+  battery while the house was importing did not reduce the bill, so it
+  counts as grid-sourced whatever the DC wiring did. Sungrow's own
+  `total_battery_charge_from_pv` answers the physical question instead
+  and gives a different, larger PV share; it is not the right basis for
+  costing.
+- Solar into the battery is traced back out with a mixing model: each
+  discharge draws the battery's current mix of PV- and grid-sourced
+  energy. Conversion losses are not charged against stored solar, since
+  charge and discharge are measured at the same plane.
+- Counter lag makes some buckets show more solar going to store and
+  export than that bucket generated, so direct use goes slightly
+  negative there. It nets out across the window.
+- No microproduction tax reduction is applied; it has been withdrawn.
+  Export earns spot + 0.104 only.
+- The counterfactual holds house load and battery behaviour fixed. EV
+  charging reacts to Nord Pool prices only and knows nothing about the
+  panels or the battery, so it is unaffected by their presence.
+- The metrics history begins mid-window on 2026-07-15 with the
+  generation counter already at 261.1 kWh, so the install date cannot
+  be recovered from it. These are window figures, not lifetime ones.
 - Battery size is taken from the data, not a datasheet: discharge runs
   give about 0.198 kWh delivered per SOC point and charge runs about
   0.237 kWh in, so roughly 19-20 kWh usable with a 17 % round trip.

@@ -10,9 +10,19 @@ rows = []
 with open("data.csv") as f:
     for r in csv.DictReader(f):
         d = {"t": int(r["t"])}
-        for k in ["spot", "imp_px", "exp_px", "batt", "grid", "soc", "expw", "pvgen", "ev"]:
+        for k in ["spot", "imp_px", "exp_px", "batt", "grid", "soc", "expw", "pvgen",
+                  "direct", "pvbatt", "pvexp", "loadw", "ev"]:
             d[k] = float(r[k]) if r[k] not in ("", "None") else None
         rows.append(d)
+
+# Cumulative counters -> per-bucket energy. Bucket i covers [t_i, t_i+1),
+# so its energy is the counter's rise across that step. The last row has no
+# successor and is dropped from the counter-derived figures.
+for a, b in zip(rows, rows[1:]):
+    for k in ("pvgen", "direct", "pvbatt", "pvexp"):
+        a["d_" + k] = (b[k] - a[k]) if (a[k] is not None and b[k] is not None
+                                        and b[k] >= a[k]) else None
+rows[-1].update({"d_" + k: None for k in ("pvgen", "direct", "pvbatt", "pvexp")})
 
 # keep rows where we have battery + grid + spot
 R = [r for r in rows if r["batt"] is not None and r["grid"] is not None and r["spot"] is not None]
@@ -20,6 +30,9 @@ print("usable rows: %d (%.1f days)" % (len(R), len(R)*H/24))
 t0 = datetime.fromtimestamp(R[0]["t"], TZ)
 t1 = datetime.fromtimestamp(R[-1]["t"], TZ)
 print("window: %s -> %s\n" % (t0.strftime("%Y-%m-%d %H:%M"), t1.strftime("%Y-%m-%d %H:%M")))
+
+def rate0(v, q):
+    return v/q if q > 1e-9 else 0.0
 
 def expprice(r):      # export compensation, sensor if present else spot + 0.104
     return r["exp_px"] if r["exp_px"] is not None else r["spot"] + 0.104
@@ -75,6 +88,72 @@ if gch_kwh>0:
     print("  avg spot when grid-chg:  %.3f kr/kWh" % (gch_spotw/gch_kwh))
     print("  full import cost paid:   %.1f kr  (spot+skatt+nat)" % gch_cost)
 
+# ---- PV: what the solar was worth, priced when it was consumed ----
+# Everything here is AC-side, because that is the plane the prices apply
+# to. PV generation is metered on the DC side, so it is scaled by the
+# window's own DC->AC ratio, derived from the household balance
+#     PV_ac = load + export + charge - import - discharge.
+# Shortcut: one ratio for the whole window rather than a per-bucket
+# efficiency curve. It is a few percent, and it moves the total, not the
+# shape. ponytail: per-bucket balance is too noisy at night to use
+# directly -- half the buckets come out slightly negative.
+M = [r for r in R if r["d_pvgen"] is not None and r["loadw"] is not None]
+dc = sum(r["d_pvgen"] for r in M)
+ac = sum((r["loadw"] + max(-r["grid"], 0.0) + max(r["batt"], 0.0)
+          - max(r["grid"], 0.0) - max(-r["batt"], 0.0))/1000*H for r in M)
+k_ac = ac/dc if dc > 1e-9 else 1.0
+
+# Where each PV kWh went. The split is economic, not physical: a kWh that
+# charged the battery while the house was importing did not reduce the
+# bill, so it is grid-sourced whatever the DC wiring did.
+pv = {"gen":0.0, "direct":0.0, "tobatt":0.0, "toexp":0.0, "dirval":0.0, "expval":0.0}
+pool_pv = pool_gr = 0.0          # battery content by origin (mixing tank)
+sto = {"house":0.0, "hval":0.0, "grid":0.0, "gval":0.0}
+for r in M:
+    imp = r["imp_px"] if r["imp_px"] is not None else r["spot"] + 0.83125
+    exp = expprice(r)
+    I = max(r["grid"], 0.0)/1000*H; E = max(-r["grid"], 0.0)/1000*H
+    C = max(r["batt"], 0.0)/1000*H; D = max(-r["batt"], 0.0)/1000*H
+    gen = r["d_pvgen"]*k_ac
+    tb = C - min(C, I)           # PV into the battery
+    te = E - min(D, E)           # PV straight out to the grid
+    # Not clamped. Counter lag makes some buckets show more going to store
+    # and export than that bucket generated, so di goes slightly negative
+    # there; it nets out over the window and keeps this split identical to
+    # the one the P&L uses.
+    di = gen - tb - te           # the rest served the house as it arrived
+    pv["gen"] += gen; pv["direct"] += di; pv["tobatt"] += tb; pv["toexp"] += te
+    pv["dirval"] += di*imp       # consumed as generated: same bucket, same price
+    pv["expval"] += te*exp
+
+    pool_pv += tb; pool_gr += min(C, I)
+    have = pool_pv + pool_gr
+    if D > 0 and have > 1e-9:    # discharge draws the current mix
+        take = min(D, have); f = pool_pv/have
+        pool_pv -= take*f; pool_gr -= take*(1 - f)
+        to_grid = min(take, min(D, E)); to_house = take - to_grid
+        sto["house"] += to_house*f; sto["hval"] += to_house*f*imp
+        sto["grid"] += to_grid*f;   sto["gval"] += to_grid*f*exp
+
+print("\n=== SOLAR: WHERE IT WENT AND WHAT IT WAS WORTH ===")
+print("generated (AC-side):  %7.1f kWh   [DC meter %.1f, ratio %.3f]"
+      % (pv["gen"], dc, k_ac))
+print("  used as generated:  %7.1f kWh  worth %7.1f kr  (%.2f/kWh import avoided)"
+      % (pv["direct"], pv["dirval"], rate0(pv["dirval"], pv["direct"])))
+print("  stored in battery:  %7.1f kWh   -> priced below, when it came out"
+      % pv["tobatt"])
+print("  exported at once:   %7.1f kWh  worth %7.1f kr  (%.2f/kWh)"
+      % (pv["toexp"], pv["expval"], rate0(pv["expval"], pv["toexp"])))
+print("\nstored solar, priced at the moment it was used:")
+print("  came out to house:  %7.1f kWh  worth %7.1f kr  (%.2f/kWh import avoided)"
+      % (sto["house"], sto["hval"], rate0(sto["hval"], sto["house"])))
+print("  came out to grid:   %7.1f kWh  worth %7.1f kr  (%.2f/kWh)"
+      % (sto["grid"], sto["gval"], rate0(sto["gval"], sto["grid"])))
+print("  still in the battery at the end: %.1f kWh" % pool_pv)
+tot = pv["dirval"] + pv["expval"] + sto["hval"] + sto["gval"]
+days = len(R)*H/24
+print("SOLAR VALUE: %.0f kr over %.1f days (%.0f kr/day)" % (tot, days, tot/days))
+
 # ---- battery P&L, marginal accounting ----
 # Charging costs what the kWh would otherwise have been worth: grid-sourced
 # at the import price, PV-sourced at the export price it forgoes. Discharge
@@ -95,18 +174,16 @@ for r in R:
     pl["house"] += ho;  pl["hval"] += ho*imp
     pl["sold2"] += s;   pl["srev"] += s*exp
 
-def rate(v, q):
-    return v/q if q > 1e-9 else 0.0
 
 print("\n=== BATTERY P&L over window ===")
 print("charged from grid:   %6.1f kWh, cost %7.1f kr (%.2f/kWh)"
-      % (pl["gch"], pl["gcost"], rate(pl["gcost"], pl["gch"])))
+      % (pl["gch"], pl["gcost"], rate0(pl["gcost"], pl["gch"])))
 print("charged from PV:     %6.1f kWh, export forgone %.1f kr (%.2f/kWh)"
-      % (pl["pvch"], pl["pvcost"], rate(pl["pvcost"], pl["pvch"])))
+      % (pl["pvch"], pl["pvcost"], rate0(pl["pvcost"], pl["pvch"])))
 print("discharged to house: %6.1f kWh, import avoided %.1f kr (%.2f/kWh)"
-      % (pl["house"], pl["hval"], rate(pl["hval"], pl["house"])))
+      % (pl["house"], pl["hval"], rate0(pl["hval"], pl["house"])))
 print("discharged to grid:  %6.1f kWh, revenue %7.1f kr (%.2f/kWh)"
-      % (pl["sold2"], pl["srev"], rate(pl["srev"], pl["sold2"])))
+      % (pl["sold2"], pl["srev"], rate0(pl["srev"], pl["sold2"])))
 net = pl["hval"] + pl["srev"] - pl["gcost"] - pl["pvcost"]
 print("NET: %+.1f kr over %.1f days (%+.1f kr/day)"
       % (net, len(R)*H/24, net/(len(R)*H/24)))
@@ -166,16 +243,36 @@ if E:
 
 # ---- hour-of-day profile ----
 print("\n=== HOUR-OF-DAY PROFILE (local time) ===")
-print("hr | spot  | grid kW (+imp/-exp) | batt kW (+chg/-dis) | n")
-byh = defaultdict(lambda: {"spot":[], "grid":[], "batt":[]})
+print("hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh")
+byh = defaultdict(lambda: {"spot":[], "grid":[], "batt":[], "gb":0.0, "bg":0.0})
 for r in R:
     h = datetime.fromtimestamp(r["t"], TZ).hour
     byh[h]["spot"].append(r["spot"])
     byh[h]["grid"].append(r["grid"])
     byh[h]["batt"].append(r["batt"])
+    byh[h]["gb"] += min(max(r["batt"], 0.0), max(r["grid"], 0.0))/1000*H
+    byh[h]["bg"] += min(max(-r["batt"], 0.0), max(-r["grid"], 0.0))/1000*H
 for h in range(24):
     b = byh[h]
     if not b["spot"]: continue
-    print("%2d | %5.2f | %+6.0f              | %+6.0f              | %d" % (
-        h, statistics.mean(b["spot"]),
-        statistics.mean(b["grid"]), statistics.mean(b["batt"]), len(b["spot"])))
+    print("%2d | %5.2f | %+6.0f  | %+6.0f  |     %5.1f      |     %5.1f" % (
+        h, statistics.mean(b["spot"]), statistics.mean(b["grid"]),
+        statistics.mean(b["batt"]), b["gb"], b["bg"]))
+
+# ---- winter what-if: grid-charging that would land in the high tariff ----
+win = sum(byh[h]["gb"] for h in range(6, 22))
+tot = sum(byh[h]["gb"] for h in range(24))
+print("\n=== WINTER WHAT-IF ===")
+print("grid-charge in hours 06-21 (HIGH nat in winter): %.1f of %.1f kWh (%.0f%%)"
+      % (win, tot, 100*win/max(tot, 1e-9)))
+print("extra nat cost if this fell on winter workdays: %.1f x 0.575 = %.0f kr"
+      % (win, win*0.575))
+
+# ---- grid-charge energy by spot level ----
+buck = defaultdict(float)
+for r in R:
+    g = min(max(r["batt"], 0.0), max(r["grid"], 0.0))/1000*H
+    if g > 0: buck[round(r["spot"]*2)/2] += g
+print("\n=== GRID-CHARGE ENERGY BY SPOT LEVEL ===")
+for b in sorted(buck):
+    print("  spot ~%.1f : %5.1f kWh" % (b, buck[b]))

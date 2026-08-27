@@ -24,6 +24,13 @@ series = {
     "soc":    'homeassistant_sensor_battery_percent{entity="sensor.battery_level"}',
     "expw":   'homeassistant_sensor_power_w{entity="sensor.export_power"}',
     "pvgen":  'homeassistant_sensor_energy_kwh{entity="sensor.total_pv_generation"}',
+    # Sungrow's own PV split, metered on the DC side. These are cumulative
+    # counters: difference consecutive samples for per-bucket energy. They
+    # close exactly, pvgen == direct + pvbatt + pvexp over any window.
+    "direct": 'homeassistant_sensor_energy_kwh{entity="sensor.total_direct_energy_consumption"}',
+    "pvbatt": 'homeassistant_sensor_energy_kwh{entity="sensor.total_battery_charge_from_pv"}',
+    "pvexp":  'homeassistant_sensor_energy_kwh{entity="sensor.total_exported_energy_from_pv"}',
+    "loadw":  'homeassistant_sensor_power_w{entity="sensor.load_power"}',
     # EV charger power. Per-bucket EV energy must come from this, not from
     # the session energy counter, which reports in delayed batches.
     "ev":     'homeassistant_sensor_power_w{entity="sensor.zag064494_laddeffekt"}',
