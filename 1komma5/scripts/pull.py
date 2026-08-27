@@ -1,8 +1,7 @@
 """Pull battery / grid / price series from VictoriaMetrics into data.csv.
 
 VM is read-only at http://192.168.40.20:8428 (no auth). We shell out
-to curl because the sandbox blocks Python's own socket layer but
-allows curl.
+to curl rather than using Python's socket layer.
 
 Sign conventions (verified against SOC change and export power):
   grid (sensor.p1_meter_effekt):            + = import, - = export
@@ -12,7 +11,9 @@ import json, subprocess
 
 BASE = "http://192.168.40.20:8428/api/v1/query_range"
 STEP = "900"          # 15 min
-RANGE_DAYS = 14
+# Absolute window, Europe/Stockholm (CEST = UTC+2 in July).
+START = "2026-07-15T13:15:00Z"   # 2026-07-15 15:15 local
+END   = "2026-07-31T22:00:00Z"   # 2026-08-01 00:00 local
 
 series = {
     "spot":   'homeassistant_sensor_unit_sek_per_kwh{entity="sensor.nord_pool_se3_aktuellt_pris"}',
@@ -29,8 +30,8 @@ def fetch(q):
     out = subprocess.check_output([
         "curl", "-s", BASE,
         "--data-urlencode", "query=%s" % q,
-        "--data-urlencode", "start=now-%dd" % RANGE_DAYS,
-        "--data-urlencode", "end=now",
+        "--data-urlencode", "start=%s" % START,
+        "--data-urlencode", "end=%s" % END,
         "--data-urlencode", "step=%s" % STEP,
     ], timeout=90)
     j = json.loads(out)

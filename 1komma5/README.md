@@ -60,19 +60,19 @@ payment, not VAT-adjusted.
 
 ## Contents
 
-- `analysis-2026-07.md` -- first evaluation, on 10.7 days of summer
-  data. Verdict in short: the summer behaviour is mostly spot-rational
-  and grid-charging is net beneficial; the genuine risk is the winter
-  time-of-use grid tariff, which is dormant in summer and so cannot be
-  tested from this data. Re-run in Nov-Mar.
+- `analysis-2026-07.md` -- evaluation on 16.4 days of summer data
+  (2026-07-15 15:15 -> 2026-08-01 00:00). Verdict in short: the summer
+  behaviour is mostly spot-rational and grid-charging is net
+  beneficial; the genuine risk is the winter time-of-use grid tariff,
+  which is dormant in summer and so cannot be tested from this data.
+  Re-run in Nov-Mar.
 - `scripts/` -- the pull and analysis scripts, so any evaluation is
   reproducible. See below.
 
 ## Re-running
 
 VictoriaMetrics is read-only reachable at `http://192.168.40.20:8428`
-(no auth). The scripts shell out to `curl` because the sandbox blocks
-Python's own socket layer but allows curl.
+(no auth). The scripts shell out to `curl`.
 
 ```
 cd 1komma5/scripts
