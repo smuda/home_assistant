@@ -20,6 +20,7 @@ no boundary correction.
 | Grid export | 345.7 |
 | Battery charged | 322.8 |
 | Battery discharged | 322.8 |
+| EV charged (Zaptec) | 159.7 |
 
 The house was a net exporter this month: 86 kWh more went out than
 came in. That changes the question from July. When PV is in surplus
@@ -67,44 +68,79 @@ the afternoon and displaced evening import at 2.87-3.04 kr/kWh. That
 is a 0.7-0.9 kr/kWh spread that survives the adder. Buying at 2.4 kr
 looks alarming in isolation and is correct in context.
 
-## Where the adder-blindness does bite
+## 2026-08-17: an EV charge, not a pricing error
 
-The morning selling is the behaviour to watch, and it can be costed
-exactly: energy the battery sold before 12:00 that the house then had
-to re-import after 16:00 the same day, valued at the difference
-between the import price paid and the export pay received.
+The one day in the window that looks bad has a load explanation, not a
+price one.
 
-Over the whole window that comes to 6.7 kr, and 6.1 kr of it is one
-day.
+`sensor.zag064494_laddeffekt` shows a single EV session on the 17th:
+16:30 to 22:45, 10.6 kW flat for most of it, 44.3 kWh. That session is
+the whole of the evening import.
 
-2026-08-17 is the case in full:
+The day in sequence:
 
-- 08:15-09:15, the battery dumps 7.5 kW to the grid, SOC 76 % -> 38 %,
-  earning spot 1.33 plus 0.104. The house was already exporting PV at
-  the time, so this was on top of a surplus.
-- 09:30-14:00, the battery sits at 37 % for four and a half hours
-  while 3-4 kW of PV goes out to the grid.
-- 14:00-16:15, it charges from PV back to 79 %.
-- 16:30-18:15, it discharges 15.8 kWh into a heavy house load and
-  empties to 11 %.
-- 18:30-23:45, the house imports 8-14 kW at 2.08-2.38 kr/kWh, and at
-  22:15 the optimiser starts grid-charging the battery again at 2.06-
-  2.31 kr/kWh.
+- 08:15-09:15, the battery exports 7.5 kW to the grid, SOC 76 % ->
+  38 %, earning spot 1.33 plus 0.104. The house was already exporting
+  PV, so this was on top of a surplus.
+- 09:30-13:45, the battery sits at 37 % while PV exports.
+- 13:45-16:15, it charges 7.9 kWh from PV back to 79 %.
+- 16:30, the car plugs in at 10.6 kW. The battery empties into it,
+  15.7 kWh, and reaches 3 % by 18:30.
+- 18:30-23:45, the house imports 39.4 kWh at a mean 2.25 kr/kWh, and
+  from 22:15 the optimiser grid-charges the battery again at
+  2.06-2.31 kr/kWh.
 
-So it sold at 1.43 and bought back at 2.2-2.3 about ten hours later.
-On raw spot alone that round trip is only mildly bad (1.33 out, 1.49
-in). The 0.73 kr/kWh asymmetry between import and export is what turns
-it into a real loss, and that asymmetry is exactly what a spot-only
-plan cannot see.
+The morning sale did not cost the battery anything by itself: SOC was
+76 % at 08:00 and back to 79 % by 16:15, so PV fully replaced what was
+sold. On any normal evening that is free money -- evening import in
+this window is otherwise about 0.1 kWh a day.
 
-The idle midday is the larger miss on that day, though it is a
-forecast question rather than a pricing one: the battery had room and
-the evening needed 40 kWh.
+Nor was the session forecastable. August charging starts at 16:30,
+13:15, 02:15, 11:15, 18:15, 02:15, 16:00 and 02:15. There is a
+recurring 02:15 night charge; the 16:30 plug-in has no precedent in
+the data to learn from.
+
+The midday idle is not a miss either. PV charging costs the export it
+forgoes, and that was about 1.03 kr/kWh at 14:00 against 1.40 at
+10:00. Waiting for the cheapest PV was the right call, given a normal
+load forecast.
+
+What the sale did cost is bounded by battery headroom. At 16:30 the
+battery was at 82 % against a 99 % ceiling, so at most 17 SOC points
+-- about 3.4 kWh at the measured 0.198 kWh per point -- of the 7.5 kWh
+sold could have been retained. Those 3.4 kWh would have displaced
+evening import at 2.25 kr/kWh, worth 7.6 kr, against 4.9 kr of sale
+revenue given up. That is a net cost of about 3 kr.
+
+Against a 44.3 kWh charge and a battery that delivers roughly 19 kWh
+from full, some 25 kWh had to come from the grid whatever the
+optimiser did. Perfect price foresight would have saved 3 kr of an
+88 kr evening.
+
+## What adder-blindness costs across the window
+
+Measured as energy the battery sold before 12:00 that the house had to
+re-import after 16:00 the same day, valued at the difference between
+the import price paid and the export pay received:
+
+6.7 kr over 26 days, and 6.1 kr of it is the 17th.
+
+Treat that as an upper bound. It ignores headroom -- it credits the
+counterfactual with keeping every sold kWh, when the battery could
+only have held part of it. The headroom-capped figure for the 17th is
+about 3 kr, roughly half.
 
 On every other day with morning selling the loss is a rounding error,
 because the battery refilled from PV surplus and the evening import
 was essentially zero. Selling a kWh that PV was about to replace for
 free costs nothing.
+
+Where the adder does matter is the direction of the error. The sale
+earned spot plus 0.104 and the buy-back cost spot plus 0.83, so a
+round trip that is only mildly bad on spot alone (1.33 out, 1.49 in)
+becomes a real loss. That asymmetry is precisely what a spot-only plan
+cannot see. On the 17th it is the second-order term; the EV is the
+first.
 
 ## The winter risk
 
@@ -179,7 +215,13 @@ hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh
   `sensor.battery_charging_power_signed` (+charge/-discharge),
   `sensor.p1_meter_effekt` (+import/-export),
   `sensor.battery_level` (SOC), `sensor.export_power`,
-  `sensor.total_pv_generation`.
+  `sensor.total_pv_generation`,
+  `sensor.zag064494_laddeffekt` (EV charger power; per-bucket EV energy
+  must come from the power series, not the session energy counter,
+  which reports in delayed batches).
+- Battery size is taken from the data, not a datasheet: discharge runs
+  give about 0.198 kWh delivered per SOC point and charge runs about
+  0.237 kWh in, so roughly 19-20 kWh usable with a 17 % round trip.
 
 ## Recommendation
 
@@ -191,9 +233,10 @@ hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh
    (`sensor.elexport_ersattning`) instead of raw spot, if the
    integration allows it. That is the structural fix, and it is the
    one that matters in winter.
-3. Watch for repeats of the 2026-08-17 shape: a heavy evening load on
-   a day the battery sold down in the morning. One such day cost 6 kr;
-   a winter one would cost more, and the midday idle on that day
-   suggests the load forecast, not just the price model, missed.
+3. The 2026-08-17 shape is a load-forecast problem, not a price one,
+   and it cost about 3 kr. If it recurs often enough to matter, the fix
+   is telling the optimiser about a planned EV charge, not changing its
+   price inputs. In winter the same day would cost more, since PV
+   cannot refill what was sold.
 4. Re-run in Nov-Dec, when the high-tariff window is live and the
    grid-charging in hours 06-21 can be priced for real.

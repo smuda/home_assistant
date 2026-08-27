@@ -62,10 +62,40 @@ The two substantial episodes:
 Both fall in high-spot hours, which is what a spot optimiser is
 supposed to sell into.
 
-Costed: those 16.3 kWh earned 15.9 kr as export compensation. Kept in
-the battery and used later they would have avoided 27.8 kr of import.
-The adder-blindness therefore cost about 12 kr over 16 days, well
-under a krona a day.
+Costed properly, that is cheaper than it looks. Valuing the sold kWh
+at the import they would have avoided in the same hour overstates the
+loss, because the house was usually exporting at the time -- there was
+no import in that hour to avoid. The honest measure is energy sold
+before noon that the house had to re-import after 16:00 the same day:
+
+| Day | sold | at | re-imported | at | loss |
+|---|---|---|---|---|---|
+| 2026-07-17 | 3.9 | 1.17 | 3.1 | 1.98 | 2.5 kr |
+| 2026-07-18 | 6.4 | 0.91 | 13.7 | 1.11 | 1.3 kr |
+| 2026-07-24 | 1.1 | 1.13 | 1.2 | 1.78 | 0.7 kr |
+| 2026-07-29 | 1.8 | 0.73 | 2.5 | 0.97 | 0.4 kr |
+
+Total 5.0 kr over 16 days, well under a krona a day. Neither of the
+two large episodes involved EV charging: the first charging session in
+this window starts 2026-07-19 14:15, two days after the 07-17 sale.
+These sales are price decisions, not a response to house load.
+
+## What the battery earned
+
+Pricing each kWh marginally -- charging costs whatever it was
+otherwise worth, discharging is worth the import it avoids or the
+export it earns -- gives the whole picture. Round-trip losses fall out
+of the arithmetic, since discharge is smaller than charge.
+
+| Flow | kWh | kr | kr/kWh |
+|---|---|---|---|
+| Charged from grid | 107.3 | -119.1 | 1.11 paid |
+| Charged from PV | 146.6 | -67.1 | 0.46 export forgone |
+| Discharged to house | 210.5 | +317.1 | 1.51 import avoided |
+| Discharged to grid | 16.3 | +15.9 | 0.98 earned |
+
+Net: +147 kr over 16.4 days, about 9 kr/day. The optimiser is making
+money; the 5 kr of adder-blindness above is noise against it.
 
 ## Why the summer data does not settle the concern
 
@@ -153,7 +183,13 @@ hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh
   `sensor.battery_charging_power_signed` (+charge/-discharge),
   `sensor.p1_meter_effekt` (+import/-export),
   `sensor.battery_level` (SOC), `sensor.export_power`,
-  `sensor.total_pv_generation`.
+  `sensor.total_pv_generation`,
+  `sensor.zag064494_laddeffekt` (EV charger power; per-bucket EV energy
+  must come from the power series, not the session energy counter,
+  which reports in delayed batches).
+- The P&L is marginal, not a bill. It prices each kWh at what it was
+  otherwise worth at that moment, and says nothing about whether the
+  battery pays for its own capital cost.
 
 ## Recommendation
 
@@ -166,3 +202,6 @@ hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh
    adder-blindness.
 3. The tail of grid-charging at spot near 1 kr (5.4 kWh) is worth a
    quick look; it may be a forecast miss in the optimiser.
+4. House load, not price, is the other variable worth watching. See
+   `analysis-2026-08.md` for a day where an unforecastable EV charge,
+   not the price model, drove the outcome.
