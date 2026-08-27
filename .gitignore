@@ -6,3 +6,6 @@ config/secrets.yaml
 *.token
 known_devices.yaml
 ip_bans.yaml
+
+# Per-agent scratch memory: local notes, not project config.
+.claude/agent-memory/

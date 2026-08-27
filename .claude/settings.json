@@ -1,0 +1,19 @@
+{
+  "autoMode": {
+    "environment": [
+      "$defaults",
+      "Repository visibility: PUBLIC (github.com/smuda/home_assistant). Anything committed or pushed is world-readable and cannot be un-published.",
+      "Trusted repo: /Users/john/Projects/smuda/home_assistant, remote origin https://github.com/smuda/home_assistant.git, default branch main.",
+      "Sensitive data: HA long-lived token at metrics/vmconfig/homeassistant-token and the SSH deploy key at ~/.ssh/ha_deploy (both outside git; the token is gitignored via metrics/.gitignore). HA secrets live in secrets.yaml / config/secrets.yaml on the live host, gitignored here. Never read, echo, or commit these; reference them by path only.",
+      "Routine commands: this is a YAML-only Home Assistant config repo -- no build, no package manager, no test suite. Normal work is editing YAML under automations/, templates/, sensors/, scripts/, dashboards/, blueprints/, notify/, plus python3 analysis scripts in 1komma5/scripts/ and metrics/. Read-only checks: git status/diff/log, make check-ssh, python3 1komma5/scripts/*.py, curl against VictoriaMetrics at http://192.168.40.20:8428.",
+      "CI/CD: none (no .github/workflows). Deploy is manual and outward-facing: make deploy rsyncs over SSH to the live Home Assistant at homeassistant.local and reloads automations/templates/scripts. Treat make deploy and any deploy-* / reload-* target as a change to live home automation -- confirm before running. make pull-config writes back into config/."
+    ]
+  },
+  "sandbox": {
+    "network": {
+      "allowedDomains": [
+        "192.168.40.20:8428"
+      ]
+    }
+  }
+}
