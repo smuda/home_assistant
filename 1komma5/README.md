@@ -12,8 +12,51 @@ winter it is also blind to the time-of-use grid tariff. The question
 these analyses answer is whether that blindness costs real money, and
 how much.
 
-The full price model lives in `../templates/electricity_price.md`
-(import cost) and `../templates/export_compensation.md` (export pay).
+## Price model
+
+These are the numbers every analysis in this directory is costed
+with. They are the same values the live template sensors use, see
+`../templates/electricity_price.md` (import cost) and
+`../templates/export_compensation.md` (export pay). Invoice figures
+are quoted ex VAT; the analyses use the incl-VAT column, since that
+is what is actually paid.
+
+| Component | ex VAT | incl VAT (x1.25) |
+|---|---|---|
+| Energy (Nord Pool spot) | spot | spot |
+| Trader markup | 0 | 0 |
+| Energy tax | 0.360 | 0.450 |
+| Grid transfer, high tariff | 0.765 | 0.95625 |
+| Grid transfer, low tariff | 0.305 | 0.38125 |
+| Grid feed-in benefit (export) | 0.104 | 0.104 |
+
+Formulas, SEK/kWh incl VAT:
+
+```
+import = spot + 0.450 + grid           (grid = 0.95625 or 0.38125)
+export = spot + 0.104
+```
+
+The high/low spread is therefore 0.575 SEK/kWh incl VAT. That spread
+is the whole reason a spot-only optimiser can be wrong in winter: it
+is invisible in the spot series.
+
+### Grid tariff window
+
+The grid transfer fee is high only when all three hold:
+
+- month is November, December, January, February or March
+- it is a working day
+- the hour is 06:00-21:59
+
+Otherwise it is low. Working day means
+`binary_sensor.workday_sensor_se` (Sweden, with julafton and
+nyarsafton added); the grid company bills weekday red days as low
+tariff. Holiday details are in `../templates/electricity_price.md`.
+
+Spot is assumed VAT-inclusive as delivered by the Nord Pool
+integration. The 0.104 feed-in benefit is a flat grid-company
+payment, not VAT-adjusted.
 
 ## Contents
 
