@@ -74,6 +74,12 @@ payment, not VAT-adjusted.
   the one bad day is an unforecastable 44 kWh EV charge, not a pricing
   error, and costs about 3 kr. The house turned net importer over the
   month on the back of the last five days. Winter still untested.
+- `report-prompt.md` -- the prompt to hand Claude when writing the
+  next month's analysis. Carries the method, the traps, and the
+  conventions, so a new report does not re-derive them.
+- `data/` -- archived 15-min windows, committed. Anything rescued from
+  Home Assistant's recorder lands here, because that source expires
+  after about ten days.
 - `scripts/` -- the pull and analysis scripts, so any evaluation is
   reproducible. See below.
 
@@ -84,12 +90,27 @@ VictoriaMetrics is read-only reachable at `http://192.168.40.20:8428`
 
 ```
 cd 1komma5/scripts
-python3 pull.py       # writes data.csv (14 days, 15-min steps)
+python3 pull.py       # writes data.csv for the window in START/END
 python3 analyze.py    # everything: totals, the two behaviours, solar
                       # value, battery P&L, EV sessions, hour-of-day
                       # profile, winter what-if, spot distribution
 ```
 
-Adjust `RANGE_DAYS` / `STEP` in `pull.py` for other windows. The
-entity ids and sign conventions are documented at the top of each
+Adjust `START` / `END` / `STEP` in `pull.py` for other windows. They
+are absolute UTC timestamps, so a window is reproducible. `pull.py`
+backfills spot from elprisetjustnu.se when the Nord Pool integration
+has dropped out.
+
+`analyze.py` takes an optional path, so an archived window is read the
+same way:
+
+```
+python3 analyze.py ../data/2026-09.csv
+```
+
+When VictoriaMetrics has missed a window entirely, `from_hass.py`
+rescues it from Home Assistant's recorder into `data/`. That recorder
+keeps roughly ten days, so it only works while the gap is fresh.
+
+The entity ids and sign conventions are documented at the top of each
 script.

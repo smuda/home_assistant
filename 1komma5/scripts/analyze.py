@@ -1,4 +1,4 @@
-import csv, statistics
+import csv, statistics, sys
 from collections import defaultdict
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -7,7 +7,8 @@ TZ = ZoneInfo("Europe/Stockholm")
 H = 0.25  # hours per bucket (15 min)
 
 rows = []
-with open("data.csv") as f:
+SRC = sys.argv[1] if len(sys.argv) > 1 else "data.csv"
+with open(SRC) as f:
     for r in csv.DictReader(f):
         d = {"t": int(r["t"])}
         for k in ["spot", "imp_px", "exp_px", "batt", "grid", "soc", "expw", "pvgen",
