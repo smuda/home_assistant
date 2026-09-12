@@ -1,0 +1,62 @@
+# Alerts when VictoriaMetrics stops recording.
+# Reads sensor.victoriametrics_dataalder, defined in
+# sensors/victoriametrics_watchdog.yaml -- see that file for why the
+# watchdog lives in Home Assistant rather than alongside VM itself.
+#
+# Fires after 30 minutes of trouble, then repeats every 6 hours for as
+# long as it lasts. There is deliberately no all-clear message.
+id: "1789203600000"
+alias: VictoriaMetrics nere
+description: >-
+  Notifies when VictoriaMetrics has been unreachable, or has stopped
+  taking new Home Assistant samples, for 30 minutes. Repeats every 6
+  hours until it recovers. An outage here is silent and costs history
+  that cannot be recovered after about ten days.
+mode: single
+max_exceeded: silent
+
+triggers:
+  # VM unreachable, or answering but holding no such series.
+  - trigger: state
+    entity_id: sensor.victoriametrics_dataalder
+    to:
+      - unavailable
+      - unknown
+    for: "00:30:00"
+  # VM reachable but no longer scraping. An hour of silence is far
+  # outside the 5-minute scrape interval.
+  - trigger: numeric_state
+    entity_id: sensor.victoriametrics_dataalder
+    above: 3600
+    for: "00:30:00"
+
+actions:
+  - repeat:
+      # Checked before every pass, so recovery ends the loop without
+      # sending a further message.
+      while:
+        - condition: template
+          value_template: >-
+            {% set s = states('sensor.victoriametrics_dataalder') %}
+            {{ s in ['unavailable', 'unknown'] or s | float(0) > 3600 }}
+      sequence:
+        - action: notify.mobile_app_johns_iphone_13
+          data:
+            title: VictoriaMetrics
+            message: >-
+              {%- set s = states('sensor.victoriametrics_dataalder') -%}
+              {%- if s == 'unavailable' -%}
+              Unreachable at 192.168.40.20:8428. Container or NAS is
+              down; history is being lost.
+              {%- elif s == 'unknown' -%}
+              Reachable but holds no Home Assistant series. Scrape
+              config or token may be broken.
+              {%- else -%}
+              Up but not scraping. Newest sample is
+              {{ (s | float(0) / 3600) | round(1) }} h old.
+              {%- endif -%}
+            data:
+              push:
+                interruption-level: time-sensitive
+              url: http://192.168.40.20:8428
+        - delay: "06:00:00"

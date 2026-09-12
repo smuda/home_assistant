@@ -1,0 +1,49 @@
+# VictoriaMetrics watchdog
+# ========================
+# This file is the VALUE of the `sensor:` key -- a list -- pulled in
+# by configuration.yaml with:
+#
+#   sensor: !include_dir_merge_list sensors/
+#
+# So it must be a YAML list of sensor configs (each `- platform: ...`),
+# never its own top-level `sensor:` key.
+#
+# Why this exists: VictoriaMetrics runs in a container on the QNAP NAS
+# and stopped for eleven days in September 2026 without anyone
+# noticing. Eleven days of history were lost; only the last ten could
+# be rescued from Home Assistant's own recorder. A watchdog has to
+# live OUTSIDE that stack, which is why it is here and not in vmalert
+# or Grafana -- those die with the thing they would be watching.
+#
+# One sensor covers every failure mode, because it asks VM how old its
+# newest Home Assistant sample is:
+#
+#   unavailable  -> VM is unreachable (container down, NAS down)
+#   a big number -> VM is up but no longer scraping Home Assistant
+#   unknown      -> VM answered but holds no such series at all
+#
+# A separate ping of /health would add a poll and tell us nothing this
+# does not already say.
+#
+# Platform sensors need a Home Assistant RESTART to (re)load; a
+# template or automation reload is not enough.
+
+- platform: rest
+  name: "VictoriaMetrics dataalder"
+  unique_id: victoriametrics_dataalder
+  resource: http://192.168.40.20:8428/api/v1/query
+  params:
+    # Seconds between now and the newest sample of a series that is
+    # always present. p1_meter_effekt is scraped continuously, so its
+    # age is a fair proxy for "is the scrape alive".
+    query: >-
+      time() - timestamp(homeassistant_sensor_power_w{entity="sensor.p1_meter_effekt"})
+  # An empty result set raises here, which lands the sensor on
+  # `unknown` -- deliberately distinct from `unavailable`.
+  value_template: "{{ value_json.data.result[0].value[1] | float | round(0) }}"
+  unit_of_measurement: s
+  device_class: duration
+  state_class: measurement
+  # Scraping is every 5 minutes, so polling faster tells us nothing.
+  scan_interval: 300
+  timeout: 20
