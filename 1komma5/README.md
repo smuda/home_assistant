@@ -67,13 +67,13 @@ payment, not VAT-adjusted.
   over the window; the genuine risk is the winter time-of-use grid
   tariff, which is dormant in summer and so cannot be tested from this
   data. Re-run in Nov-Mar.
-- `analysis-2026-08.md` -- preliminary evaluation on 26.0 days
-  (2026-08-01 -> 2026-08-27), covering the mid-month price spike.
-  Verdict in short: the solar is worth 36 kr/day and the battery nets
-  about 10 kr/day; grid-charging at 2.4 kr/kWh during the spike was
-  correct arbitrage; the one bad day is an unforecastable 44 kWh EV
-  charge, not a pricing error, and costs about 3 kr. Winter still
-  untested.
+- `analysis-2026-08.md` -- full month, 31.0 days (2026-08-01 ->
+  2026-09-01), covering the mid-month price spike. Verdict in short:
+  the solar is worth 35 kr/day and the battery nets about 9 kr/day;
+  grid-charging at 2.4 kr/kWh during the spike was correct arbitrage;
+  the one bad day is an unforecastable 44 kWh EV charge, not a pricing
+  error, and costs about 3 kr. The house turned net importer over the
+  month on the back of the last five days. Winter still untested.
 - `scripts/` -- the pull and analysis scripts, so any evaluation is
   reproducible. See below.
 

@@ -1,6 +1,6 @@
 # Battery steering: spot vs grid tariff (August 2026)
 
-Preliminary check of whether the 1KOMMA5 optimiser loses money by
+Full-month check of whether the 1KOMMA5 optimiser loses money by
 planning against raw Nord Pool spot while ignoring the grid transfer
 fee (nataavgift) and the import/export price asymmetry.
 
@@ -9,41 +9,43 @@ that produced these numbers are in `scripts/`.
 
 ## Window and totals
 
-Window: 2026-08-01 00:00 -> 2026-08-27 00:00 (26.0 days, 15-min
-resolution). Battery charged and discharged the same 322.8 kWh over
-the window, so the start and end SOC match and the totals below need
-no boundary correction.
+Window: 2026-08-01 00:00 -> 2026-09-01 00:00 (31.0 days, 15-min
+resolution), the whole month. SOC ran 82 % to 77 %, so the battery
+ends marginally emptier than it started and charge exceeds discharge
+by 12 kWh.
 
 | Post | kWh |
 |---|---|
-| Grid import | 259.6 |
-| Grid export | 345.7 |
-| Battery charged | 322.8 |
-| Battery discharged | 322.8 |
-| EV charged (Zaptec) | 159.7 |
+| Grid import | 456.1 |
+| Grid export | 370.4 |
+| Battery charged | 400.0 |
+| Battery discharged | 387.9 |
+| EV charged (Zaptec) | 249.9 |
 
-The house was a net exporter this month: 86 kWh more went out than
-came in. That changes the question from July. When PV is in surplus
-most of the day, the alternative to storing a kWh is exporting it, not
-importing later.
+The house was a net importer over the month, by 86 kWh. That is the
+opposite of what the first three weeks suggested, and the last five
+days are why: 2026-08-27 to 08-31 alone drew 196.8 kWh of import, of
+which 90.2 kWh went into the car. PV was also falling away by then.
+For most of the month the alternative to storing a kWh was exporting
+it; by the end of the month it was importing later.
 
-Unlike the July window, both computed price sensors have full history
-here, so the analysis reads them directly instead of applying the
-documented constants. They agree with the model: import minus spot is
-0.8313 on average (model 0.83125) and export minus spot is 0.1038
-(model 0.104).
+Both computed price sensors have history for most of the window, so
+the analysis reads them directly instead of applying the documented
+constants. They agree with the model: import minus spot is 0.8313 on
+average (model 0.83125) and export minus spot is 0.1038 (model 0.104).
 
 ## The two behaviours
 
-Behaviour 1, grid-charging. 68.3 kWh (21 % of all charging) came from
-the grid at a mean import price of 1.77 kr/kWh. This is far more
-expensive charging than July, and it is concentrated: 39.3 kWh of it
-went in at spot above 1.2 kr, on 2026-08-17 through 2026-08-19 and
-2026-08-24, during the mid-month price spike.
+Behaviour 1, grid-charging. 120.5 kWh (30 % of all charging) came from
+the grid at a mean import price of 1.59 kr/kWh. This is far more
+expensive charging than July, and part of it is concentrated: 45.4 kWh
+went in at spot above 1.2 kr, at a mean import price of 2.21, during
+the mid-month price spike. The rest is cheap night charging, 25.9 kWh
+of it in hours 04-05 alone.
 
-Behaviour 2, battery selling to the grid. 69.7 kWh (22 % of all
-discharge) went straight out to the grid at a mean export pay of 1.36
-kr/kWh, overwhelmingly in hours 07-09 (55.2 of 69.7 kWh). Three times
+Behaviour 2, battery selling to the grid. 84.7 kWh (22 % of all
+discharge) went straight out to the grid at a mean export pay of 1.37
+kr/kWh, overwhelmingly in hours 07-09 (69.2 of 84.7 kWh). Three times
 the July share, and the same morning-sale pattern.
 
 ## What it actually earned
@@ -56,17 +58,18 @@ fall out of the arithmetic, since discharge is smaller than charge.
 
 | Flow | kWh | kr | kr/kWh |
 |---|---|---|---|
-| Charged from grid | 68.3 | -120.8 | 1.77 paid |
-| Charged from PV | 254.5 | -142.1 | 0.56 export forgone |
-| Discharged to house | 253.1 | +426.1 | 1.68 import avoided |
-| Discharged to grid | 69.7 | +94.8 | 1.36 earned |
+| Charged from grid | 120.5 | -191.4 | 1.59 paid |
+| Charged from PV | 279.5 | -157.5 | 0.56 export forgone |
+| Discharged to house | 303.2 | +512.4 | 1.69 import avoided |
+| Discharged to grid | 84.7 | +115.9 | 1.37 earned |
 
-Net: +258 kr over 26 days, about 10 kr/day. The battery is making
-money, and the expensive grid-charging during the spike is part of
-why: on 2026-08-18 and 2026-08-19 it bought at 2.03-2.45 kr/kWh in
-the afternoon and displaced evening import at 2.87-3.04 kr/kWh. That
-is a 0.7-0.9 kr/kWh spread that survives the adder. Buying at 2.4 kr
-looks alarming in isolation and is correct in context.
+Net: +280 kr over 31 days, about 9 kr/day, level with July's 9. The
+battery is making money, and the expensive grid-charging during the
+spike is part of why: on 2026-08-18 and 2026-08-19 it bought at
+2.03-2.45 kr/kWh in the afternoon and displaced evening import at
+2.87-3.04 kr/kWh. That is a 0.7-0.9 kr/kWh spread that survives the
+adder. Buying at 2.4 kr looks alarming in isolation and is correct in
+context.
 
 ## What the solar was worth
 
@@ -77,30 +80,30 @@ is dear.
 
 | Where it went | kWh | kr | kr/kWh |
 |---|---|---|---|
-| Used as it was generated | 276.7 | 416.7 | 1.51 avoided |
-| Stored, used later by the house | 183.4 | 283.9 | 1.55 avoided |
-| Stored, later sold to the grid | 57.5 | 81.3 | 1.42 earned |
-| Exported as it was generated | 276.0 | 158.0 | 0.57 earned |
-| Total | 793.6 | 940 | |
+| Used as it was generated | 324.1 | 489.3 | 1.51 avoided |
+| Stored, used later by the house | 205.8 | 322.9 | 1.57 avoided |
+| Stored, later sold to the grid | 65.5 | 93.9 | 1.43 earned |
+| Exported as it was generated | 285.8 | 168.4 | 0.59 earned |
+| Total | 881.2 | 1074 | |
 
-940 kr over 26.0 days, about 36 kr/day, against July's 33.
+1074 kr over 31.0 days, about 35 kr/day, against July's 33.
 
 The battery is what lifts the middle rows. Solar that went into it had
 no house load to serve at the time, so its alternative was export at
-0.57 kr/kWh. It came back out at 1.55. That spread, 0.98 kr/kWh over
-183.4 kWh, is about 180 kr of the 940 -- and it is the same value the
+0.59 kr/kWh. It came back out at 1.57. That spread, 0.98 kr/kWh over
+205.8 kWh, is about 202 kr of the 1074 -- and it is the same value the
 battery P&L above counts as the battery's, seen from the other side.
 Do not add the two together.
 
-Note how much better the stored kWh did this month than in July: 1.55
+Note how much better the stored kWh did this month than in July: 1.57
 against 1.53 on the way out is barely changed, but the export
-alternative rose from 0.45 to 0.57 while three times as much solar
-went through the battery. The mid-month price spike is why the
-evenings were worth so much.
+alternative rose from 0.45 to 0.59 while twice as much solar went
+through the battery. The mid-month price spike is why the evenings
+were worth so much.
 
 Generation is metered on the DC side while prices apply on the AC
 side, so the totals are scaled by the window's own DC-to-AC ratio,
-0.925 here (807.3 kWh AC from 872.6 kWh DC). A further 13.6 kWh of
+0.920 here (889.4 kWh AC from 966.6 kWh DC). A further 8.2 kWh of
 solar was still sitting in the battery when the window closed and is
 not valued.
 
@@ -159,7 +162,9 @@ Measured as energy the battery sold before 12:00 that the house had to
 re-import after 16:00 the same day, valued at the difference between
 the import price paid and the export pay received:
 
-6.7 kr over 26 days, and 6.1 kr of it is the 17th.
+8.9 kr over 31 days, and 6.1 kr of it is the 17th. The month's other
+notable days are 08-27 at 1.2 kr and 08-31 at 1.1 kr, both the same
+shape as the 17th and both far smaller.
 
 Treat that as an upper bound. It ignores headroom -- it credits the
 counterfactual with keeping every sold kWh, when the battery could
@@ -180,11 +185,11 @@ first.
 
 ## The winter risk
 
-68 % of the grid-charging (46.6 of 68.3 kWh) happened in hours 06-21,
+61 % of the grid-charging (73.5 of 120.5 kWh) happened in hours 06-21,
 which is the high-tariff window in the winter half-year (0.956 vs
 0.381, i.e. +0.575 kr/kWh). A pure spot optimiser does not see that
 premium. Repeated on winter working days, a comparable 26-day stretch
-would carry about 27 kr of extra grid fee that the AI does not price
+would carry about 42 kr of extra grid fee that the AI does not price
 in.
 
 This is still the open question. The time-of-use grid fee only varies
@@ -202,30 +207,30 @@ charging, negative is discharging.
 
 ```
 hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh
- 0 |  0.60 |   +200  |   -575  |      0.1       |      0.8
- 1 |  0.53 |   +407  |   -437  |      1.4       |      0.2
- 2 |  0.51 |  +1014  |   -512  |      1.3       |      0.1
- 3 |  0.51 |  +1311  |   -860  |      1.0       |      0.1
- 4 |  0.53 |  +1065  |   -524  |      7.6       |      0.1
- 5 |  0.58 |   +745  |   -335  |      6.3       |      0.1
- 6 |  0.72 |   +196  |   -124  |      2.5       |      0.1
- 7 |  0.84 |   -846  |   -621  |      0.1       |     13.6
- 8 |  0.83 |  -2052  |  -1111  |      0.5       |     29.7
- 9 |  0.71 |  -1935  |   -267  |      0.1       |     11.9
-10 |  0.57 |  -1844  |   +387  |      0.2       |      1.6
-11 |  0.50 |  -1470  |   +275  |      1.3       |      1.5
-12 |  0.44 |  -1049  |  +1214  |      1.4       |      0.0
-13 |  0.41 |   -148  |  +2111  |      3.3       |      0.0
-14 |  0.40 |   +102  |  +2681  |     11.4       |      0.0
-15 |  0.44 |   -277  |  +1696  |     10.6       |      0.0
-16 |  0.51 |   -202  |   +977  |      9.5       |      1.6
-17 |  0.69 |   -140  |   +190  |      5.4       |      0.3
-18 |  0.94 |   +143  |   -162  |      0.0       |      0.4
-19 |  1.12 |   +570  |   -611  |      0.0       |      3.0
-20 |  1.14 |   +190  |   -943  |      0.2       |      2.4
-21 |  1.03 |   +263  |   -876  |      0.1       |      0.6
-22 |  0.86 |   +189  |   -949  |      0.8       |      0.8
-23 |  0.70 |   +253  |   -616  |      3.2       |      0.5
+ 0 |  0.58 |   +537  |   -412  |      3.6       |      0.8
+ 1 |  0.52 |   +647  |   -366  |      1.4       |      0.2
+ 2 |  0.50 |  +1533  |   -430  |      1.3       |      0.1
+ 3 |  0.51 |  +1590  |   -656  |      3.5       |      0.1
+ 4 |  0.52 |  +1380  |   -307  |     12.5       |      0.2
+ 5 |  0.57 |  +1316  |    -97  |     13.4       |      0.1
+ 6 |  0.72 |   +607  |   -124  |      3.4       |      0.1
+ 7 |  0.85 |   -676  |   -638  |      0.1       |     15.7
+ 8 |  0.84 |  -1801  |  -1118  |      0.5       |     34.7
+ 9 |  0.72 |  -1748  |   -315  |      3.1       |     18.8
+10 |  0.56 |  -1571  |   +413  |      0.2       |      1.8
+11 |  0.49 |   -872  |   +416  |      5.4       |      1.5
+12 |  0.44 |   -585  |  +1262  |      5.4       |      0.0
+13 |  0.40 |   +181  |  +1907  |      5.6       |      0.0
+14 |  0.40 |   +226  |  +2388  |     13.4       |      0.0
+15 |  0.43 |    -37  |  +1574  |     11.6       |      0.0
+16 |  0.51 |    -89  |   +943  |     11.5       |      1.6
+17 |  0.70 |     +5  |   +188  |      7.8       |      0.3
+18 |  0.96 |   +210  |   -268  |      2.3       |      0.7
+19 |  1.13 |   +609  |   -681  |      3.0       |      3.0
+20 |  1.13 |   +195  |  -1053  |      0.2       |      2.4
+21 |  1.01 |   +245  |   -986  |      0.1       |      1.0
+22 |  0.83 |   +267  |   -917  |      0.8       |      0.8
+23 |  0.68 |   +591  |   -327  |     10.4       |      0.5
 ```
 
 ## Method notes and caveats
@@ -273,6 +278,16 @@ hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh
 - The counterfactual holds house load and battery behaviour fixed. EV
   charging reacts to Nord Pool prices only and knows nothing about the
   panels or the battery, so it is unaffected by their presence.
+- The Nord Pool integration dropped out over the last days of the
+  month: spot was missing for 20, 24, 38 and 95 of the 96 buckets on
+  08-28, 08-29, 08-30 and 08-31. Those 178 buckets are backfilled from
+  elprisetjustnu.se, the same SE3 day-ahead series at the same 15-min
+  resolution. Calibrated against 2026-08-27, which has full local
+  coverage: the Home Assistant sensor lags the published series by
+  exactly one bucket, and at that offset the two agree to a mean
+  absolute difference of 0.014 kr/kWh. The import and export prices for
+  those buckets come from the documented constants rather than their
+  sensors, which were missing too.
 - The metrics history begins mid-window on 2026-07-15 with the
   generation counter already at 261.1 kWh, so the install date cannot
   be recovered from it. These are window figures, not lifetime ones.
@@ -282,9 +297,10 @@ hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh
 
 ## Recommendation
 
-1. The summer verdict holds and strengthens: the optimiser is net
-   positive, about 10 kr/day, and the adder-blindness costs single
-   kronor per month while PV surplus covers the evening.
+1. The summer verdict holds: the optimiser is net positive, about
+   9 kr/day, and adder-blindness costs 9 kr across the whole month
+   while PV surplus covers the evening. The solar itself is worth four
+   times what the battery adds, 35 kr/day against 9.
 2. Feed 1KOMMA5 the full import price
    (`sensor.nordpool_se3_inkl_skatt_o_nat`) and the export pay
    (`sensor.elexport_ersattning`) instead of raw spot, if the
@@ -296,4 +312,11 @@ hr | spot  | grid W  | batt W  | grid->batt kWh | batt->grid kWh
    price inputs. In winter the same day would cost more, since PV
    cannot refill what was sold.
 4. Re-run in Nov-Dec, when the high-tariff window is live and the
-   grid-charging in hours 06-21 can be priced for real.
+   grid-charging in hours 06-21 can be priced for real. The last five
+   days of August already show the turn: PV falling, import rising,
+   and the house a net importer for the month despite three weeks of
+   surplus.
+5. Watch the Nord Pool integration. It went missing for the last days
+   of the month and the gap had to be backfilled from a public source;
+   while it is down the repo's own price templates have nothing to
+   work from.
