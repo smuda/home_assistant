@@ -25,13 +25,21 @@
 # A separate ping of /health would add a poll and tell us nothing this
 # does not already say.
 #
+# ADDRESS: the NAS has an interface on each VLAN, and Home Assistant
+# (192.168.60.10) has no route to the metrics VLAN -- 192.168.40.20 is
+# unreachable from here, even though it is the address the analysis
+# scripts use from a workstation that can see both. Point at the
+# VLAN 60 interface, 192.168.60.20, or the sensor never starts: a REST
+# sensor whose first fetch fails raises PlatformNotReady and no entity
+# is created at all, silently.
+#
 # Platform sensors need a Home Assistant RESTART to (re)load; a
 # template or automation reload is not enough.
 
 - platform: rest
   name: "VictoriaMetrics dataalder"
   unique_id: victoriametrics_dataalder
-  resource: http://192.168.40.20:8428/api/v1/query
+  resource: http://192.168.60.20:8428/api/v1/query
   params:
     # Seconds between now and the newest sample of a series that is
     # always present. p1_meter_effekt is scraped continuously, so its

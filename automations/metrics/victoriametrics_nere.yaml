@@ -46,7 +46,7 @@ actions:
             message: >-
               {%- set s = states('sensor.victoriametrics_dataalder') -%}
               {%- if s == 'unavailable' -%}
-              Unreachable at 192.168.40.20:8428. Container or NAS is
+              Unreachable at 192.168.60.20:8428. Container or NAS is
               down; history is being lost.
               {%- elif s == 'unknown' -%}
               Reachable but holds no Home Assistant series. Scrape
@@ -58,5 +58,5 @@ actions:
             data:
               push:
                 interruption-level: time-sensitive
-              url: http://192.168.40.20:8428
+              url: http://192.168.60.20:8428
         - delay: "06:00:00"
