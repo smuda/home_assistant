@@ -13,6 +13,20 @@ to the user's global CLAUDE.md, they do not replace it.
   in prose, that is tolerated; the firm rule is no non-ASCII
   punctuation or symbols.
 
+## Changes to the live instance
+
+This is a house, not a service with an uptime target. A
+restart-length window where an automation is offline -- adding a new
+top-level key to `configuration.yaml`, recreating a helper -- is
+acceptable. Do not design staged cutovers, temporary object ids, or
+elaborate timing around it.
+
+State the risk in a line or two, pick the cheap mitigation (do it at
+low household load), and get on with it. Save the caution for silent,
+lasting failures: a duplicate `..._2` entity, a broken entity
+reference, a helper that no longer exists where an automation reads
+it.
+
 ## Agent skills
 
 ### Issue tracker
