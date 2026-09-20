@@ -1,0 +1,55 @@
+# Mean all-in electricity price over a forward charging window (SE3)
+# ==================================================================
+# sensor.nordpool_se3_inkl_skatt_o_nat answers "what does a kWh cost
+# right now". A charging decision needs the other question: "what will
+# a kWh cost on average over the next N hours". This averages the
+# already-computed full-cost curve in the `today` / `tomorrow`
+# attributes of sensor.elpris_serie_se3
+# (templates/electricity_price_series.yaml), so the tariff constants
+# live in exactly one place -- do NOT recompute spot/tax/nat here.
+#
+# This file is part of the merged `template:` list and carries no
+# top-level `template:` key of its own; see README.md.
+#
+# Window
+# ------
+# N comes from input_number.elbil_laddfonster_timmar (helpers/), so it
+# can be re-tuned from the dashboard without a restart. The series is
+# at 15-minute resolution, so N hours is 4*N entries.
+#
+# The window starts at the CURRENT quarter-hour, not the next one: a
+# charge started now pays for the quarter it is standing in. Quarter
+# hours are aligned to the epoch (every timezone offset in play is a
+# whole hour), so flooring the epoch to a 900 s boundary is the same
+# instant as the local quarter-hour.
+#
+# `today` runs out at 23:45, so the window continues into `tomorrow`,
+# which is [] until the day-ahead prices release (~15-16).
+#
+# Coverage guard: if fewer than 4*N entries remain, the sensor is
+# `unknown` rather than an average of a short window. That is the only
+# check consumers need -- a number here always covers the full window.
+#
+# now() makes HA re-render every minute, so the window advances on its
+# own.
+
+- sensor:
+    - name: "Elpris medel laddfönster"
+      unique_id: elpris_medel_laddfonster
+      unit_of_measurement: "SEK/kWh"
+      state_class: measurement
+      icon: mdi:ev-station
+      state: >
+        {% set timmar = states('input_number.elbil_laddfonster_timmar') | float(0) %}
+        {% set behov = ((timmar * 4) | round(0, 'ceil')) | int %}
+        {% set idag = state_attr('sensor.elpris_serie_se3', 'today') %}
+        {% set imorgon = state_attr('sensor.elpris_serie_se3', 'tomorrow') %}
+        {% set serie = (idag or []) + (imorgon or []) %}
+        {% set start = ((as_timestamp(now()) // 900) * 900000) | int %}
+        {% set ns = namespace(priser=[]) %}
+        {% for e in serie if e[0] >= start %}
+          {% set ns.priser = ns.priser + [e[1]] %}
+        {% endfor %}
+        {{ (ns.priser[:behov] | sum / behov) | round(2)
+           if behov > 0 and (ns.priser | count) >= behov
+           else none }}

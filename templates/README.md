@@ -25,6 +25,7 @@ to `configuration.yaml`. Two rules follow from the merge:
 |---|---|---|
 | `electricity_price.yaml` | [electricity_price.md](electricity_price.md) | Real cost of imported electricity in SE3: spot + energy tax + time-of-use grid fee, incl VAT. |
 | `export_compensation.yaml` | [export_compensation.md](export_compensation.md) | What you are paid per exported kWh: spot + 10.4 öre/kWh grid feed-in benefit. |
+| `charge_window_price.yaml` | [charge_window_price.md](charge_window_price.md) | Mean all-in price over the next N hours, N from `input_number.elbil_laddfonster_timmar`. |
 
 ## Deploying
 

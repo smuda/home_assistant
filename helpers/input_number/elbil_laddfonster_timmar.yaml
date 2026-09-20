@@ -1,0 +1,16 @@
+# Length of the forward price window that sensor.elpris_medel_laddfonster
+# averages over -- "how many hours of charging am I pricing?".
+# templates/charge_window_price.md explains the sensor.
+#
+# No `initial:`, so a value set on the dashboard survives a restart
+# instead of snapping back every reboot (same reasoning as
+# ../input_boolean/zaptec_fuse_paused.yaml). A fresh instance therefore
+# comes up at `min`; set it to 3 once after the first deploy:
+#   input_number.set_value, entity elbil_laddfonster_timmar, value 3
+name: Laddfönster timmar
+icon: mdi:ev-station-clock
+min: 1
+max: 8
+step: 1
+unit_of_measurement: h
+mode: slider

@@ -133,6 +133,46 @@ RESTART Home Assistant once after adding these keys. Automations then
 reload live via `automation.reload` on each deploy, but changed
 platform sensors under `sensors/` need a restart (no reload service).
 
+## Helpers (one-time step)
+
+Helpers live under `helpers/`, one file per helper, in a subdirectory
+per domain, and deploy to `/config/helpers/`. A directory include is
+bound to one domain, so each domain gets its own key in the live
+`configuration.yaml`:
+
+```yaml
+input_boolean: !include_dir_named helpers/input_boolean/
+input_number:  !include_dir_named helpers/input_number/
+```
+
+Each file's basename becomes the helper's object id, so
+`helpers/input_number/elbil_laddfonster_timmar.yaml` is
+`input_number.elbil_laddfonster_timmar`.
+
+RESTART Home Assistant once after adding a domain's key; a reload
+cannot register a brand-new top-level key. After that, edits
+hot-reload via that domain's `reload` service, which `make deploy`
+calls for every domain listed in the Makefile's `HELPER_DOMAINS`. A
+new domain needs its subdirectory, its key, one restart, and its name
+added to `HELPER_DOMAINS`.
+
+ORDER MATTERS: edit the live `configuration.yaml` BEFORE the first
+`make deploy` that moves helpers between directories, not after.
+`!include_dir_named` walks the tree recursively, so an include still
+pointing at `helpers/` would pick up every domain subdirectory and
+feed, say, an `input_number` file to the `input_boolean` schema. The
+whole domain then fails validation, and because `<domain>.reload`
+answers 200 even when it rejected the config, the deploy reports
+success while nothing reloaded -- the breakage only shows at the next
+restart, as a missing entity. `deploy-helpers` syncs with `--delete`,
+so the old file is gone by then. Run `ha core check` on the host
+after the edit and before restarting.
+
+`deploy-helpers` syncs with `--delete`, so a helper removed from the
+repo is removed from the live host. Nothing else writes to
+`/config/helpers` -- helpers created in the GUI live in `.storage`,
+not here.
+
 ## Template sensors (one-time step)
 
 Template entities under `templates/` need a single manual step the

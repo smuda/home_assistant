@@ -59,15 +59,19 @@ NOTIFY_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/notify/
 SCRIPTS_SRC  := scripts/
 SCRIPTS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/scripts/
 
-# Toggle helpers, one-per-file, included via
-#   input_boolean: !include_dir_named helpers/
-# so each file's basename becomes the helper's object id. HA must be
-# RESTARTED the first time (a reload cannot register a brand-new
-# `input_boolean:` key); after that, edits hot-reload via
-# input_boolean.reload. The dir is input_boolean-only -- another helper
-# domain needs its own key and its own dir.
+# Helpers, one file per helper, grouped into a subdir per domain:
+#   input_boolean: !include_dir_named helpers/input_boolean/
+#   input_number:  !include_dir_named helpers/input_number/
+# so each file's basename becomes the helper's object id. A dir include
+# is bound to ONE domain, hence the subdirs; adding a domain means a new
+# subdir, a new key in the live configuration.yaml (plus one RESTART, a
+# reload cannot register a brand-new key) and a line in HELPER_DOMAINS.
+# After that first restart, helper edits hot-reload via <domain>.reload.
+# --delete prunes helpers removed from the repo; nothing else writes to
+# /config/helpers (GUI helpers live in .storage, not here).
 HELPERS_SRC  := helpers/
 HELPERS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/helpers/
+HELPER_DOMAINS := input_boolean input_number
 
 # YAML-mode dashboards, wired into configuration.yaml via
 #   lovelace:
@@ -135,7 +139,7 @@ deploy-scripts:
 
 deploy-helpers:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/helpers'
-	$(RSYNC) $(HELPERS_SRC) $(HELPERS_DEST)
+	$(RSYNC) --delete $(HELPERS_SRC) $(HELPERS_DEST)
 
 deploy-dashboards:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/dashboards'
@@ -181,14 +185,17 @@ reload-scripts:
 	  && echo "scripts reloaded" \
 	  || { echo "script reload failed (check token/URL)"; exit 1; }
 
-# Reloads input_boolean helpers without a restart. Only works once the
-# `input_boolean:` include exists and HA has been restarted at least once.
+# Reloads helpers without a restart, one reload service per domain. Only
+# works once that domain's include exists and HA has been restarted at
+# least once since it was added.
 reload-helpers:
-	@curl -sf -X POST \
-	  -H "Authorization: Bearer $$(tr -d '\r\n' < $(HA_TOKEN_FILE))" \
-	  $(HA_URL)/api/services/input_boolean/reload >/dev/null \
-	  && echo "helpers reloaded" \
-	  || { echo "helper reload failed (first deploy? add the include and RESTART HA once)"; exit 1; }
+	@for d in $(HELPER_DOMAINS); do \
+	  curl -sf -X POST \
+	    -H "Authorization: Bearer $$(tr -d '\r\n' < $(HA_TOKEN_FILE))" \
+	    $(HA_URL)/api/services/$$d/reload >/dev/null \
+	    && echo "$$d helpers reloaded" \
+	    || { echo "$$d reload failed (first deploy? add the include and RESTART HA once)"; exit 1; }; \
+	done
 
 deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-helpers deploy-dashboards reload-automations reload-templates reload-scripts reload-helpers pull-config
 	@echo "Deployed blueprint + templates + automations + sensors + notify + scripts + helpers + dashboards on $(HA_HOST)."

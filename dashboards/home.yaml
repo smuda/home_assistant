@@ -74,6 +74,17 @@ views:
           - entity: sensor.nord_pool_se3_aktuellt_pris
             name: Energipris nu
 
+      # Forward-looking companion to the glance above: what a kWh costs
+      # on average over the next N hours, N set by the helper on the
+      # same card. Unknown until the day-ahead prices cover the window.
+      - type: entities
+        title: Elpris framåt
+        entities:
+          - entity: sensor.elpris_medel_laddfonster
+            name: Medelpris i laddfönstret
+          - entity: input_number.elbil_laddfonster_timmar
+            name: Laddfönster
+
       # ---- Vader + utetemp ---------------------------------------
       - type: weather-forecast
         entity: weather.forecast_hem

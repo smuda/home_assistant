@@ -211,11 +211,15 @@ installer-set installation limit and cannot be raised in the app.
 
 ### Required helper
 
-`helpers/zaptec_fuse_paused.yaml` (repo root) defines the toggle, and
-the filename is the object id: `input_boolean.zaptec_fuse_paused`.
-It is loaded via `input_boolean: !include_dir_named helpers/` in
+`helpers/input_boolean/zaptec_fuse_paused.yaml` (repo root) defines
+the toggle, and the filename is the object id:
+`input_boolean.zaptec_fuse_paused`. It is loaded via
+`input_boolean: !include_dir_named helpers/input_boolean/` in
 `configuration.yaml` and shipped by `make deploy`, which also calls
-`input_boolean.reload`. The automation uses it to remember a
+`input_boolean.reload`. Note that `deploy-helpers` syncs with
+`--delete`: moving or renaming this file in the repo without
+repointing the include first removes the entity on the live host, and
+the automation reads its `last_changed` unguarded. The automation uses it to remember a
 fuse-pause so it can resume automatically and not confuse that with a
 normally finished charge; its `last_changed` is the stop/resume
 timestamp, so nothing else should toggle it.
