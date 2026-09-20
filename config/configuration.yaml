@@ -11,7 +11,8 @@ frontend:
 
 automation: !include_dir_list automations/
 script: !include_dir_named scripts/
-input_boolean: !include_dir_named helpers/
+input_boolean: !include_dir_named helpers/input_boolean/
+input_number: !include_dir_named helpers/input_number/
 scene: !include scenes.yaml
 
 template: !include_dir_merge_list templates/
