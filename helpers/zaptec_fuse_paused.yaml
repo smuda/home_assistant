@@ -1,0 +1,8 @@
+# Fuse-stop latch for automations/zaptec/Dynamic_fuse_protection.yaml.
+# on = the automation stopped the car to keep a phase under the main
+# fuse. Its last_changed IS the stop/resume timestamp the automation
+# reads (resume_min_hold, restop_lockout), so nothing else may toggle
+# it. No `initial:`, so the state survives a restart like any other
+# helper.
+name: zaptec_fuse_paused
+icon: mdi:adjust

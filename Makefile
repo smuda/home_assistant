@@ -59,6 +59,16 @@ NOTIFY_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/notify/
 SCRIPTS_SRC  := scripts/
 SCRIPTS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/scripts/
 
+# Toggle helpers, one-per-file, included via
+#   input_boolean: !include_dir_named helpers/
+# so each file's basename becomes the helper's object id. HA must be
+# RESTARTED the first time (a reload cannot register a brand-new
+# `input_boolean:` key); after that, edits hot-reload via
+# input_boolean.reload. The dir is input_boolean-only -- another helper
+# domain needs its own key and its own dir.
+HELPERS_SRC  := helpers/
+HELPERS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/helpers/
+
 # YAML-mode dashboards, wired into configuration.yaml via
 #   lovelace:
 #     dashboards:
@@ -79,7 +89,7 @@ DASHBOARDS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/dashboards/
 # lands in the repo.
 CONFIG_LOCAL := config
 
-.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-dashboards reload-automations reload-templates reload-scripts pull-config check-ssh
+.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-helpers deploy-dashboards reload-automations reload-templates reload-scripts reload-helpers pull-config check-ssh
 
 check-ssh:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'echo SSH OK on $$(hostname)' \
@@ -122,6 +132,10 @@ deploy-notify:
 deploy-scripts:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/scripts'
 	$(RSYNC) --exclude='_wip/' $(SCRIPTS_SRC) $(SCRIPTS_DEST)
+
+deploy-helpers:
+	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/helpers'
+	$(RSYNC) $(HELPERS_SRC) $(HELPERS_DEST)
 
 deploy-dashboards:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'sudo mkdir -p $(HA_CONFIG_DIR)/dashboards'
@@ -167,7 +181,16 @@ reload-scripts:
 	  && echo "scripts reloaded" \
 	  || { echo "script reload failed (check token/URL)"; exit 1; }
 
-deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-dashboards reload-automations reload-templates reload-scripts pull-config
-	@echo "Deployed blueprint + templates + automations + sensors + notify + scripts + dashboards on $(HA_HOST)."
+# Reloads input_boolean helpers without a restart. Only works once the
+# `input_boolean:` include exists and HA has been restarted at least once.
+reload-helpers:
+	@curl -sf -X POST \
+	  -H "Authorization: Bearer $$(tr -d '\r\n' < $(HA_TOKEN_FILE))" \
+	  $(HA_URL)/api/services/input_boolean/reload >/dev/null \
+	  && echo "helpers reloaded" \
+	  || { echo "helper reload failed (first deploy? add the include and RESTART HA once)"; exit 1; }
+
+deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-helpers deploy-dashboards reload-automations reload-templates reload-scripts reload-helpers pull-config
+	@echo "Deployed blueprint + templates + automations + sensors + notify + scripts + helpers + dashboards on $(HA_HOST)."
 	@echo "Note: changed platform sensors and notify groups need a HA restart."
 	@echo "Note: a brand-new YAML dashboard needs a HA restart once; later edits show on browser refresh."

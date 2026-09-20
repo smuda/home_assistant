@@ -211,11 +211,14 @@ installer-set installation limit and cannot be raised in the app.
 
 ### Required helper
 
-Create the toggle helper once (Settings -> Devices & services ->
-Helpers -> Create helper -> Toggle), named so its entity id is
-`input_boolean.zaptec_fuse_paused`. The automation uses it to
-remember a fuse-pause so it can resume automatically and not confuse
-that with a normally finished charge.
+`helpers/zaptec_fuse_paused.yaml` (repo root) defines the toggle, and
+the filename is the object id: `input_boolean.zaptec_fuse_paused`.
+It is loaded via `input_boolean: !include_dir_named helpers/` in
+`configuration.yaml` and shipped by `make deploy`, which also calls
+`input_boolean.reload`. The automation uses it to remember a
+fuse-pause so it can resume automatically and not confuse that with a
+normally finished charge; its `last_changed` is the stop/resume
+timestamp, so nothing else should toggle it.
 
 ### Filtered P1 sensors
 
