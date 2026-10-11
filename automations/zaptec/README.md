@@ -171,6 +171,13 @@ charger value shows the previous reading for a whole update
 interval. Right after a charge starts it still read 0 A, so the
 car's own ~15 A was counted as household load and the automation
 fuse-stopped the car every time it resumed (observed 2026-10-11).
+The raw value is capped at `number.zag064494_max_laddstrom`: the
+car cannot draw more than the commanded max, so a reading stuck
+high after a reduction cannot hide household load. Because that cap
+drops the moment a reduction lands, while the filtered P1 still holds
+up to 20 s of the old car current, the stop decision alone uses the
+lower of filtered and raw P1 per phase; otherwise that lag would read
+as household load and false-stop the car.
 
 Fail-safe on meter loss. The Home Assistant `filter` platform
 keeps emitting its last value when its source stops updating, so a

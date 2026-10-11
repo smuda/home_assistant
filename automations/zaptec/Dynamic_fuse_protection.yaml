@@ -63,14 +63,17 @@ variables:
   ev_max: 16 # installer hardware cap
   max_age: 60 # P1 data older than this (s) is treated as a dropout
   failsafe_other: 18 # assumed other-phase load (A) when P1 is dead
+  current_max: "{{ states('number.zag064494_max_laddstrom')|int(0) }}"
   # Charger current: raw, never filtered. The Zaptec sensor updates
   # only every few minutes (cloud), and a `filter` sensor recomputes
   # only on a source update, so a filtered value shows the PREVIOUS
   # reading: 0 A for minutes after a charge starts, which reads the
   # car's own current as household load and forces a false fuse-stop.
-  c1: "{{ states('sensor.zag064494_strom_fas_1')|float(0) }}"
-  c2: "{{ states('sensor.zag064494_strom_fas_2')|float(0) }}"
-  c3: "{{ states('sensor.zag064494_strom_fas_3')|float(0) }}"
+  # Capped at the commanded max: the car cannot draw more, so a raw
+  # reading stuck high after a reduction cannot hide household load.
+  c1: "{{ [ states('sensor.zag064494_strom_fas_1')|float(0), current_max ]|min }}"
+  c2: "{{ [ states('sensor.zag064494_strom_fas_2')|float(0), current_max ]|min }}"
+  c3: "{{ [ states('sensor.zag064494_strom_fas_3')|float(0), current_max ]|min }}"
   cap: "{{ fuse - margin }}"
   # P1 liveness from the RAW meter. Use last_reported (advances on
   # every meter push, even an unchanged value) so a steady load is
@@ -95,7 +98,6 @@ variables:
   # Lowest per-phase headroom against the (fuse - margin) cap.
   headroom: "{{ [ cap - o1, cap - o2, cap - o3 ]|min }}"
   raw_target: "{{ [ [ headroom|int(0), ev_max ]|min, ev_min ]|max }}"
-  current_max: "{{ states('number.zag064494_max_laddstrom')|int(0) }}"
   delta: "{{ raw_target - current_max }}"
   secs_since: >-
     {{ (now() - states.number.zag064494_max_laddstrom.last_changed)
@@ -114,9 +116,16 @@ variables:
   # Only "actually charging" - NOT connected_requesting. Acting during
   # requesting (Eco waiting) would suspend Eco and start charging now.
   charging: "{{ status == 'connected_charging' }}"
+  # Stop decision uses the lower of filtered and raw P1 per phase. Raw
+  # falls with the car at once after a reduction, while filtered still
+  # holds up to 20 s of the old car current and, against the capped c,
+  # would read as household load; filtered still smooths a raw spike.
+  s1: "{{ [ [ v1|float(0), states('sensor.p1_meter_strom_fas_1')|float(0) ]|min - c1, 0 ]|max if live1 else failsafe_other }}"
+  s2: "{{ [ [ v2|float(0), states('sensor.p1_meter_strom_fas_2')|float(0) ]|min - c2, 0 ]|max if live2 else failsafe_other }}"
+  s3: "{{ [ [ v3|float(0), states('sensor.p1_meter_strom_fas_3')|float(0) ]|min - c3, 0 ]|max if live3 else failsafe_other }}"
   # Even the 6 A minimum would push a phase to/over the fuse: the
   # car cannot help, so a controlled stop beats a tripped main fuse.
-  must_stop: "{{ other_max + ev_min >= fuse }}"
+  must_stop: "{{ [s1, s2, s3]|max + ev_min >= fuse }}"
   # Resume only after load has fallen well below that (hysteresis).
   can_resume: "{{ other_max + ev_min <= fuse - resume_hyst }}"
   # Write a new max only on a meaningful change after the interval,
