@@ -1,5 +1,5 @@
-# Filtered P1 and charger phase currents for the Zaptec fuse guard
-# ================================================================
+# Filtered P1 phase currents for the Zaptec fuse guard
+# ===========================================
 # This file is the VALUE of the `sensor:` key -- a list -- pulled in
 # by configuration.yaml with:
 #
@@ -17,10 +17,13 @@
 # fail-unsafe blind spot for a fuse guard.
 #
 # Entity ids come from the friendly name slug, not the unique_id:
-# "P1 fas 1 filtrerad" -> sensor.p1_fas_1_filtrerad, and
-# "Zaptec strom fas 1 filtrerad" -> sensor.zaptec_strom_fas_1_filtrerad
-# (not zag064494_...). Platform sensors need a RESTART to (re)load,
-# an automation/template reload is not enough.
+# "P1 fas 1 filtrerad" -> sensor.p1_fas_1_filtrerad. Platform sensors
+# need a RESTART to (re)load, an automation/template reload is not
+# enough.
+#
+# Do not filter the Zaptec charger currents here: they update only
+# every few minutes, and a filter recomputes only on a source update,
+# so it would show the previous reading (see the automation's c1..c3).
 
 - platform: filter
   name: "P1 fas 1 filtrerad"
@@ -42,30 +45,6 @@
   name: "P1 fas 3 filtrerad"
   unique_id: p1_fas_3_filtrerad
   entity_id: sensor.p1_meter_strom_fas_3
-  filters:
-    - filter: time_simple_moving_average
-      window_size: "00:00:20"
-
-- platform: filter
-  name: "Zaptec strom fas 1 filtrerad"
-  unique_id: zag064494_strom_fas_1_filtrerad
-  entity_id: sensor.zag064494_strom_fas_1
-  filters:
-    - filter: time_simple_moving_average
-      window_size: "00:00:20"
-
-- platform: filter
-  name: "Zaptec strom fas 2 filtrerad"
-  unique_id: zag064494_strom_fas_2_filtrerad
-  entity_id: sensor.zag064494_strom_fas_2
-  filters:
-    - filter: time_simple_moving_average
-      window_size: "00:00:20"
-
-- platform: filter
-  name: "Zaptec strom fas 3 filtrerad"
-  unique_id: zag064494_strom_fas_3_filtrerad
-  entity_id: sensor.zag064494_strom_fas_3
   filters:
     - filter: time_simple_moving_average
       window_size: "00:00:20"

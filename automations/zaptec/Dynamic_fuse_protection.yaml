@@ -63,24 +63,14 @@ variables:
   ev_max: 16 # installer hardware cap
   max_age: 60 # P1 data older than this (s) is treated as a dropout
   failsafe_other: 18 # assumed other-phase load (A) when P1 is dead
-  # Charger current: filtered (20 s MA) when present, else raw. Filtering
-  # the charger like the household keeps other_load stable through
-  # stop/resume transients (both signals lag equally).
-  c1: >-
-    {{ (states('sensor.zaptec_strom_fas_1_filtrerad')
-        if states('sensor.zaptec_strom_fas_1_filtrerad')
-           not in ['unknown','unavailable']
-        else states('sensor.zag064494_strom_fas_1'))|float(0) }}
-  c2: >-
-    {{ (states('sensor.zaptec_strom_fas_2_filtrerad')
-        if states('sensor.zaptec_strom_fas_2_filtrerad')
-           not in ['unknown','unavailable']
-        else states('sensor.zag064494_strom_fas_2'))|float(0) }}
-  c3: >-
-    {{ (states('sensor.zaptec_strom_fas_3_filtrerad')
-        if states('sensor.zaptec_strom_fas_3_filtrerad')
-           not in ['unknown','unavailable']
-        else states('sensor.zag064494_strom_fas_3'))|float(0) }}
+  # Charger current: raw, never filtered. The Zaptec sensor updates
+  # only every few minutes (cloud), and a `filter` sensor recomputes
+  # only on a source update, so a filtered value shows the PREVIOUS
+  # reading: 0 A for minutes after a charge starts, which reads the
+  # car's own current as household load and forces a false fuse-stop.
+  c1: "{{ states('sensor.zag064494_strom_fas_1')|float(0) }}"
+  c2: "{{ states('sensor.zag064494_strom_fas_2')|float(0) }}"
+  c3: "{{ states('sensor.zag064494_strom_fas_3')|float(0) }}"
   cap: "{{ fuse - margin }}"
   # P1 liveness from the RAW meter. Use last_reported (advances on
   # every meter push, even an unchanged value) so a steady load is

@@ -16,7 +16,6 @@ prometheus:
       - sensor.p1_meter_total_elimport_cost
       # Zaptec EV charger (fuse-protection loop + charging dashboard)
       - sensor.zag064494_*                 # current, power, energy, status, volt, temp
-      - sensor.zaptec_strom_fas_*_filtrerad  # filtered charger current (entity id is zaptec_*, not zag*)
       - number.zag064494_max_laddstrom     # control output (current cap)
       - number.zag064494_min_laddstrom
       - input_boolean.zaptec_fuse_paused   # fuse-stop latch (debug the flap logic)

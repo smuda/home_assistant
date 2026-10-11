@@ -163,15 +163,14 @@ stop and emergency thresholds while still tracking real, sustained
 load. The normal current-adjustment path is already noise-tolerant
 via its deadband and 15-minute interval.
 
-The charger's own current (`c1..c3`) is now read the same way, from
-20-second filtered sensors
-(`sensor.zaptec_strom_fas_{1,2,3}_filtrerad`), rather than the
-raw charger sensors. Because the non-car load estimate is
-`P1_phase_current - charger_phase_current`, filtering both signals
-means they lag equally, so `other_load` stays stable across a
-stop/resume transient instead of jumping while one side catches up.
-The raw charger sensors are used as a fallback until the filtered
-ones exist.
+The charger's own current (`c1..c3`) is deliberately read raw
+(`sensor.zag064494_strom_fas_{1,2,3}`), not filtered. The Zaptec
+sensor updates via the cloud only every few minutes, and a `filter`
+sensor recomputes only when its source updates, so a filtered
+charger value shows the previous reading for a whole update
+interval. Right after a charge starts it still read 0 A, so the
+car's own ~15 A was counted as household load and the automation
+fuse-stopped the car every time it resumed (observed 2026-10-11).
 
 Fail-safe on meter loss. The Home Assistant `filter` platform
 keeps emitting its last value when its source stops updating, so a
@@ -235,16 +234,6 @@ restart, not just an automation reload.
 Confirm the resulting entity ids are `sensor.p1_fas_1_filtrerad`,
 `_2_`, `_3_` (Home Assistant derives them from the friendly names).
 Until they exist the automation falls back to the raw P1 sensors.
-
-The same file also defines three charger-current filter sensors.
-Home Assistant derives their entity ids from the friendly name, so
-"Zaptec strom fas 1 filtrerad" becomes
-`sensor.zaptec_strom_fas_1_filtrerad` (not `zag064494_...`, despite
-the `unique_id`) — that is the id `c1..c3` reference. They are
-ordinary platform sensors too, so they likewise need a Home
-Assistant restart (not just an automation reload) before `c1..c3`
-will use them; until then `c1..c3` fall back to the raw charger
-sensors.
 
 ## Configuration
 
