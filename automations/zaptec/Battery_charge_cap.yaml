@@ -1,0 +1,73 @@
+# Caps the house battery's max charge power while the car charges.
+# The optimiser's ~9.7 kW grid charge counts as household load, so the
+# fuse guard floors the car at 6 A and the battery always won. Capping
+# the battery gives the car the headroom; restored when the car is done.
+# The pause helper counts as capped: a fuse-stop shows
+# connected_finished, same as a full car, and restoring then would
+# block the resume. Reads input_boolean.zaptec_fuse_paused, never
+# writes it. Never touches the forced charge mode/setpoint (the
+# optimiser rewrites those every few minutes) nor
+# number.battery_max_discharge_power.
+# No read-back check: reading the register/entity back does not show
+# the limit in force. See README.md.
+id: "1792555200000"
+alias: Battery charge cap while the car charges
+description: >-
+  Caps number.battery_max_charge_power while the car charges or the
+  fuse guard holds it paused, so the car gets the fuse headroom
+  before the optimiser's grid charge. Restores the inverter default
+  otherwise.
+mode: restart
+
+triggers:
+  - trigger: state
+    entity_id: sensor.zag064494_laddstatus
+  - trigger: state
+    entity_id: input_boolean.zaptec_fuse_paused
+  - trigger: state
+    entity_id: input_boolean.zaptec_fuse_paused
+    to: "off"
+    for: "00:10:00"
+  # Hourly rewrite: a refused Modbus write is silent, and this also
+  # covers an HA restart.
+  - trigger: time_pattern
+    minutes: 0
+
+conditions:
+  # A status blip must not restore the battery mid-charge; keep the last
+  # write. A longer outage restores, so the cap cannot stick through
+  # the next day's solar.
+  - condition: template
+    value_template: >-
+      {{ states('sensor.zag064494_laddstatus') not in ['unknown', 'unavailable']
+         or (now() - states.sensor.zag064494_laddstatus.last_changed)
+            .total_seconds() > 1800 }}
+
+variables:
+  cap_w: 1500 # battery max charge power while the car charges, W
+  restore_w: 10600 # inverter default, W
+  hold_after_pause: 600 # s the cap is held after the pause helper changes
+  # Held past a resume: the guard resumed against the capped load, and
+  # laddstatus lags minutes behind in the cloud, so the guard does not
+  # run until it reads connected_charging. Restoring then is unguarded.
+  capped: >-
+    {{ is_state('sensor.zag064494_laddstatus', 'connected_charging')
+       or is_state('input_boolean.zaptec_fuse_paused', 'on')
+       or (now() - states.input_boolean.zaptec_fuse_paused.last_changed)
+          .total_seconds() < hold_after_pause }}
+  target: "{{ cap_w if capped else restore_w }}"
+
+actions:
+  # Three blind writes 30 s apart: the inverter refuses writes
+  # transiently, HA skips an unavailable entity, and neither surfaces
+  # an error.
+  - repeat:
+      count: 3
+      sequence:
+        - action: number.set_value
+          target:
+            entity_id: number.battery_max_charge_power
+          data:
+            value: "{{ target }}"
+        - delay:
+            seconds: 30

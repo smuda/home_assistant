@@ -242,6 +242,52 @@ Confirm the resulting entity ids are `sensor.p1_fas_1_filtrerad`,
 `_2_`, `_3_` (Home Assistant derives them from the friendly names).
 Until they exist the automation falls back to the raw P1 sensors.
 
+## Battery charge cap
+
+The 1KOMMA5 optimiser's grid charge of the house battery (~9.7 kW,
+~14 A per phase) counts as household load, so the fuse guard floors
+the car at 6 A. The fuse guard's only lever is the car current, so
+the battery always won.
+
+`Battery_charge_cap.yaml` caps `number.battery_max_charge_power`
+(Sungrow register 33046) at `cap_w` 1500 W while
+`sensor.zag064494_laddstatus` is `connected_charging` or
+`input_boolean.zaptec_fuse_paused` is on, and restores `restore_w`
+10600 W otherwise. The pause helper is included because a fuse-stop
+shows `connected_finished`, the same as a full car; restoring then
+would block the resume.
+
+The cap is also held for `hold_after_pause` (600 s) after the pause
+helper changes. The fuse guard decides to resume against the capped
+load, and `laddstatus` lags minutes behind in the cloud, so the guard
+does not run again until it reads `connected_charging`. Restoring at
+the resume would put the battery's ~14 A per phase back on top of the
+restarting car while nothing watches the fuse.
+
+- The car comes before the grid charge, with no price check: both
+  draw in the same cheap hours, and the battery gets full power back
+  when the car is done.
+- The cap is fixed, not computed from headroom: that would be a
+  second controller on the same headroom as the fuse guard. The fuse
+  guard still floors/stops the car if even with the cap a phase would
+  breach the fuse.
+- It writes three times, 30 s apart, on every transition and hourly.
+  Refused writes are silent. An unknown/unavailable `laddstatus`
+  skips the run for its first 30 min; after that the hourly rewrite
+  restores, so an outage cannot hold the cap through the next day's
+  solar.
+- It is a separate automation because the fuse guard's
+  `charging or is_paused` condition would block the restore.
+
+To verify, note that reading the register or the HA entity back does
+not show the limit in force. Check the measured `sensor.battery_power`
+during forced charge instead: about -1500 W while the car charges,
+back near -9.7 kW after.
+
+Caveat: disabling the automation while capped leaves the cap in
+place. Restore by hand with `number.set_value` 10600 on
+`number.battery_max_charge_power`.
+
 ## Configuration
 
 Edit the `variables` block in `Dynamic_fuse_protection.yaml`:
@@ -271,6 +317,14 @@ Edit the `variables` block in `Dynamic_fuse_protection.yaml`:
 
 The moving-average `window_size` for the noise filter lives in
 `sensors/p1_filtered_sensors.yaml`, not here.
+
+The battery charge cap has its own `variables` block in
+`Battery_charge_cap.yaml`:
+
+- `cap_w` -- battery max charge power while the car charges, W. 1500.
+- `restore_w` -- inverter default, restored otherwise, W. 10600.
+- `hold_after_pause` -- seconds the cap is held after the pause
+  helper changes. 600.
 
 ## Caveats
 
