@@ -65,6 +65,11 @@ The external 1KOMMA5 system that decides when the battery charges and
 discharges. It plans against spot alone. Vendor name: Heartbeat AI.
 _Avoid_: the AI, the controller, the EMS
 
+**Grid charge**:
+The optimiser charging the house battery from the grid rather than
+from solar.
+_Avoid_: forced charge, night charge
+
 **Solar value**:
 What the generated energy was worth, priced at the moment it was
 consumed rather than the moment it was generated.
@@ -138,6 +143,12 @@ _Avoid_: load balancing, current limiter
 Stopping the car outright, chosen when holding it at the floor
 current would no longer keep the phase under the fuse.
 _Avoid_: emergency stop, cutoff, trip
+
+**Charge cap**:
+A ceiling on how fast the house battery may charge, held while the
+car charges or the fuse guard holds it paused, so the car gets the
+fuse headroom first. It limits charging only, never discharge.
+_Avoid_: battery cap, battery throttle, charge limit
 
 **Full**:
 A dehumidifier's tank being full, inferred from the compressor having
