@@ -37,7 +37,7 @@ sungrow_modbus_port: 502
 sungrow_modbus_wait_milliseconds: 5      # 5 for LAN port; 30+ for WiNet-S
 sungrow_modbus_device_address: 1         # inverter unit/slave id
 sungrow_modbus_sbr_device_address: 200   # battery modbus address; confirm for your model
-sungrow_modbus_battery_max_power: 5000   # battery rated power in W; set to your model
+sungrow_modbus_battery_max_power: 10600  # inverter default max charge power in W
 ```
 
 The LAN port uses `wait_milliseconds: 5`; WiNet-S would need 30 or
@@ -52,9 +52,11 @@ system uses a Pylontech Force H3 over CAN:
   per-module cell reads fail silently. Core battery data (SOC,
   power, voltage, current, SOH, temperature) is read from the
   inverter's own registers and works regardless.
-- `sungrow_modbus_battery_max_power: 10000` — only bounds the
-  manual charge/discharge control entity, so it is not critical for
-  read-only telemetry. 10000 W matches the SH10RT inverter limit.
+- `sungrow_modbus_battery_max_power: 10600` -- the inverter's own
+  default for the battery max charge power register (33046). It is
+  the upper bound of the max charge, max discharge and forced
+  charge/discharge power numbers, so a lower value stops HA from
+  restoring the default limit after the battery has been capped.
 
 ## 3. Load the package in configuration.yaml
 
