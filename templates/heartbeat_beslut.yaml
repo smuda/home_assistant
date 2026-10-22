@@ -1,0 +1,25 @@
+# 1KOMMA5 battery decision as a number
+# ====================================
+# HA's Prometheus export drops text states, so the optimiser's plan
+# never reaches VictoriaMetrics/Grafana. This turns the current plan
+# event into a code Grafana can draw. Read from the plan calendar, not
+# the decision sensor: the calendar is where "charge from grid" has
+# actually been seen. See heartbeat_beslut.md for the codes.
+#
+# Part of the merged `template:` list (see electricity_price.yaml for
+# the file-format rules).
+
+- sensor:
+    - name: "Heartbeat batteribeslut"
+      unique_id: heartbeat_batteribeslut
+      icon: mdi:battery-clock
+      state: >
+        {% set c = 'calendar.sh10_0rt_20_battery_plan_afc12081_4304_4878_97df_a160569e3faf' %}
+        {% set m = state_attr(c, 'message') or '' %}
+        {% if not is_state(c, 'on') %}0
+        {% elif 'no discharge' in m %}1
+        {% elif 'charge from grid' in m %}2
+        {% else %}3{% endif %}
+      availability: >
+        {{ states('calendar.sh10_0rt_20_battery_plan_afc12081_4304_4878_97df_a160569e3faf')
+           not in ['unknown', 'unavailable'] }}
