@@ -257,6 +257,18 @@ the battery always won.
 shows `connected_finished`, the same as a full car; restoring then
 would block the resume.
 
+While `laddstatus` is `connected_charging` it also caps
+`number.battery_max_discharge_power` (Sungrow register 33047) at
+`discharge_cap_w` 10 W (the entity minimum; 0 is refused), and
+restores `restore_w` 10600 W otherwise. In the optimiser's
+self-consumption windows the battery otherwise covers the car at
+~10 kW, spending night grid energy on the car and swinging the load
+the fuse guard sees. Not during a fuse pause or its hold: the car is
+stopped then, and the battery covering the house takes load off the
+fuse. Side effect: while the car charges the rest of the house also
+runs from the grid. It applies all year; in summer that also keeps
+stored solar from the car at night.
+
 The cap is also held for `hold_after_pause` (600 s) after the pause
 helper changes. The fuse guard decides to resume against the capped
 load, and `laddstatus` lags minutes behind in the cloud, so the guard
@@ -282,11 +294,14 @@ restarting car while nothing watches the fuse.
 To verify, note that reading the register or the HA entity back does
 not show the limit in force. Check the measured `sensor.battery_power`
 during forced charge instead: about -1500 W while the car charges,
-back near -9.7 kW after.
+back near -9.7 kW after. `sensor.battery_power` should also not go
+positive (discharge) while the car charges, even in
+self-consumption.
 
 Caveat: disabling the automation while capped leaves the cap in
-place. Restore by hand with `number.set_value` 10600 on
-`number.battery_max_charge_power`.
+place. Restore both by hand with `number.set_value` 10600 on
+`number.battery_max_charge_power` and
+`number.battery_max_discharge_power`.
 
 ## Configuration
 
@@ -322,7 +337,10 @@ The battery charge cap has its own `variables` block in
 `Battery_charge_cap.yaml`:
 
 - `cap_w` -- battery max charge power while the car charges, W. 1500.
-- `restore_w` -- inverter default, restored otherwise, W. 10600.
+- `discharge_cap_w` -- battery max discharge power while the car
+  charges, W. 10 (entity minimum).
+- `restore_w` -- inverter default, restored otherwise, for both
+  charge and discharge power, W. 10600.
 - `hold_after_pause` -- seconds the cap is held after the pause
   helper changes. 600.
 

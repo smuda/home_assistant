@@ -6,8 +6,12 @@
 # connected_finished, same as a full car, and restoring then would
 # block the resume. Reads input_boolean.zaptec_fuse_paused, never
 # writes it. Never touches the forced charge mode/setpoint (the
-# optimiser rewrites those every few minutes) nor
-# number.battery_max_discharge_power.
+# optimiser rewrites those every few minutes).
+# Also caps number.battery_max_discharge_power while the car charges:
+# in the optimiser's self-consumption windows the battery would
+# otherwise cover the car at ~10 kW, spending grid-bought charge on it.
+# Not during a fuse pause or its hold: the car is stopped then, and the
+# battery covering the house takes load off the fuse.
 # No read-back check: reading the register/entity back does not show
 # the limit in force. See README.md.
 id: "1792555200000"
@@ -15,7 +19,9 @@ alias: Battery charge cap while the car charges
 description: >-
   Caps number.battery_max_charge_power while the car charges or the
   fuse guard holds it paused, so the car gets the fuse headroom
-  before the optimiser's grid charge. Restores the inverter default
+  before the optimiser's grid charge, and
+  number.battery_max_discharge_power while the car charges, so the
+  battery does not feed the car. Restores the inverter default
   otherwise.
 mode: restart
 
@@ -45,6 +51,7 @@ conditions:
 
 variables:
   cap_w: 1500 # battery max charge power while the car charges, W
+  discharge_cap_w: 10 # same for discharge, W; the entity's minimum
   restore_w: 10600 # inverter default, W
   hold_after_pause: 600 # s the cap is held after the pause helper changes
   # Held past a resume: the guard resumed against the capped load, and
@@ -56,18 +63,30 @@ variables:
        or (now() - states.input_boolean.zaptec_fuse_paused.last_changed)
           .total_seconds() < hold_after_pause }}
   target: "{{ cap_w if capped else restore_w }}"
+  discharge_target: >-
+    {{ discharge_cap_w
+       if is_state('sensor.zag064494_laddstatus', 'connected_charging')
+       else restore_w }}
 
 actions:
   # Three blind writes 30 s apart: the inverter refuses writes
   # transiently, HA skips an unavailable entity, and neither surfaces
-  # an error.
+  # an error. continue_on_error: a value outside the entity's min/max
+  # raises, and must not skip the other register's write.
   - repeat:
       count: 3
       sequence:
         - action: number.set_value
+          continue_on_error: true
           target:
             entity_id: number.battery_max_charge_power
           data:
             value: "{{ target }}"
+        - action: number.set_value
+          continue_on_error: true
+          target:
+            entity_id: number.battery_max_discharge_power
+          data:
+            value: "{{ discharge_target }}"
         - delay:
             seconds: 30

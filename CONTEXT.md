@@ -147,8 +147,14 @@ _Avoid_: emergency stop, cutoff, trip
 **Charge cap**:
 A ceiling on how fast the house battery may charge, held while the
 car charges or the fuse guard holds it paused, so the car gets the
-fuse headroom first. It limits charging only, never discharge.
+fuse headroom first. See also the discharge cap.
 _Avoid_: battery cap, battery throttle, charge limit
+
+**Discharge cap**:
+The house battery's discharge held at its minimum while the car
+charges, so the battery does not spend its charge on the car. Not
+held during a fuse pause, when the battery may cover the house.
+_Avoid_: discharge block, battery lock
 
 **Full**:
 A dehumidifier's tank being full, inferred from the compressor having
