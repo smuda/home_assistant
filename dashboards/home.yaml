@@ -184,3 +184,178 @@ views:
             name: Luftfuktighet
           - entity: switch.uteforrad_plug_avfuktare_uteforrad
             name: Ström till avfuktare
+
+  # 1KOMMA5 Heartbeat: what the optimiser plans for the battery and the
+  # prices it plans against. Read-only on purpose -- its one lever, the
+  # Automatic Mode switch, is disabled by
+  # 1komma5/scripts/disable_duplicates.mjs. The integration labels its
+  # money values EUR but they are SEK incl VAT, hence the unit overrides.
+  - title: 1KOMMA5
+    path: 1komma5
+    icon: mdi:battery-clock
+    cards:
+      - type: markdown
+        title: Batteriplan nu
+        content: |
+          {% set d = 'sensor.sh10_0rt_20_battery_optimization_decision_afc12081_4304_4878_97df_a160569e3faf' %}
+          {% set ws = state_attr(d, 'window_start') %}
+          **{{ states(d) }}**{% if ws %} {{ as_timestamp(ws) | timestamp_custom('%H:%M') }}-{{ as_timestamp(state_attr(d, 'window_end')) | timestamp_custom('%H:%M') }}{% endif %}
+
+          {% for u in state_attr(d, 'upcoming') or [] %}
+          - {{ as_timestamp(u.from) | timestamp_custom('%H:%M') }}-{{ as_timestamp(u.to) | timestamp_custom('%H:%M') }} {{ u.decision }}
+          {% endfor %}
+
+      # Heartbeat's own price forecast with the plan as shaded bands. The
+      # bands come from the plan calendar, which holds the full horizon;
+      # the decision sensor's `upcoming` only carries the next three.
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        span:
+          start: hour
+          offset: -6h
+        now:
+          show: true
+          label: Nu
+        header:
+          show: true
+          title: Heartbeat-pris och plan
+          show_states: false
+        yaxis:
+          - id: price
+            decimals: 2
+            min: 0
+          - id: plan
+            show: false
+            min: 0
+            max: 1
+        series:
+          - entity: sensor.heartbeat_john_allberg_electricity_price_afc12081_4304_4878_97df_a160569e3faf
+            name: Pris kr/kWh
+            yaxis_id: price
+            type: line
+            curve: stepline
+            stroke_width: 2
+            extend_to: false
+            show:
+              legend_value: false
+            data_generator: |
+              return (entity.attributes.forecast || [])
+                .map((f) => [Date.parse(f.datetime), f.price]);
+          - entity: calendar.sh10_0rt_20_battery_plan_afc12081_4304_4878_97df_a160569e3faf
+            name: Laddar från nät
+            yaxis_id: plan
+            type: area
+            curve: stepline
+            stroke_width: 0
+            opacity: 0.3
+            extend_to: false
+            show:
+              legend_value: false
+            data_generator: |
+              const match = 'charge from grid';
+              const events = (await hass.callApi('GET',
+                `calendars/${entity.entity_id}?start=${start.toISOString()}&end=${end.toISOString()}`))
+                .filter((e) => e.summary.includes(match));
+              const out = [];
+              for (let t = Math.floor(start.getTime() / 900000) * 900000; t < end.getTime(); t += 900000)
+                out.push([t, events.some((e) =>
+                  Date.parse(e.start.dateTime) <= t && t < Date.parse(e.end.dateTime)) ? 1 : 0]);
+              return out;
+          - entity: calendar.sh10_0rt_20_battery_plan_afc12081_4304_4878_97df_a160569e3faf
+            name: Ingen urladdning
+            yaxis_id: plan
+            type: area
+            curve: stepline
+            stroke_width: 0
+            opacity: 0.3
+            extend_to: false
+            show:
+              legend_value: false
+            data_generator: |
+              const match = 'no discharge';
+              const events = (await hass.callApi('GET',
+                `calendars/${entity.entity_id}?start=${start.toISOString()}&end=${end.toISOString()}`))
+                .filter((e) => e.summary.includes(match));
+              const out = [];
+              for (let t = Math.floor(start.getTime() / 900000) * 900000; t < end.getTime(); t += 900000)
+                out.push([t, events.some((e) =>
+                  Date.parse(e.start.dateTime) <= t && t < Date.parse(e.end.dateTime)) ? 1 : 0]);
+              return out;
+
+      - type: calendar
+        title: Plan
+        initial_view: listWeek
+        entities:
+          - calendar.sh10_0rt_20_battery_plan_afc12081_4304_4878_97df_a160569e3faf
+
+      - type: history-graph
+        title: Beslut senaste 48 h
+        hours_to_show: 48
+        entities:
+          - entity: sensor.sh10_0rt_20_battery_optimization_decision_afc12081_4304_4878_97df_a160569e3faf
+            name: Beslut
+
+      # A table, not entity cards: three of those side by side truncate
+      # both value and unit at phone width.
+      - type: markdown
+        title: Priser nu
+        content: |
+          {% set s = '_afc12081_4304_4878_97df_a160569e3faf' %}
+          | | kr/kWh |
+          |---|---:|
+          | Elpris | {{ '%.2f' | format(states('sensor.heartbeat_john_allberg_electricity_price' ~ s) | float(0)) }} |
+          | Spot | {{ '%.2f' | format(states('sensor.heartbeat_john_allberg_spot_price' ~ s) | float(0)) }} |
+          | Nät och skatt | {{ '%.2f' | format(states('sensor.heartbeat_john_allberg_grid_costs' ~ s) | float(0)) }} |
+
+      - type: grid
+        title: Idag och besparing
+        columns: 2
+        square: false
+        cards:
+          - type: entity
+            entity: sensor.heartbeat_john_allberg_grid_supply_cost_today_afc12081_4304_4878_97df_a160569e3faf
+            name: Köpt el idag
+            unit: kr
+          - type: entity
+            entity: sensor.heartbeat_john_allberg_feed_in_earnings_today_afc12081_4304_4878_97df_a160569e3faf
+            name: Såld el idag
+            unit: kr
+          - type: entity
+            entity: sensor.heartbeat_john_allberg_heartbeat_savings_30_days_afc12081_4304_4878_97df_a160569e3faf
+            name: Besparing 30 d
+            unit: kr
+          - type: entity
+            entity: sensor.heartbeat_john_allberg_energy_trader_average_monthly_savings_afc12081_4304_4878_97df_a160569e3faf
+            name: Snittbesparing/mån
+            unit: kr
+
+      - type: grid
+        title: Heartbeat-pris mot jämförpris
+        columns: 2
+        square: false
+        cards:
+          - type: entity
+            entity: sensor.heartbeat_john_allberg_heartbeat_price_afc12081_4304_4878_97df_a160569e3faf
+            name: Heartbeat nu
+            unit: kr/kWh
+          - type: entity
+            entity: sensor.heartbeat_john_allberg_comparison_price_afc12081_4304_4878_97df_a160569e3faf
+            name: Jämförpris
+            unit: kr/kWh
+          - type: entities
+            entities:
+              - type: attribute
+                entity: sensor.heartbeat_john_allberg_heartbeat_price_afc12081_4304_4878_97df_a160569e3faf
+                attribute: week
+                name: Heartbeat, vecka
+                suffix: kr/kWh
+              - type: attribute
+                entity: sensor.heartbeat_john_allberg_heartbeat_price_afc12081_4304_4878_97df_a160569e3faf
+                attribute: month
+                name: Heartbeat, månad
+                suffix: kr/kWh
+              - type: attribute
+                entity: sensor.heartbeat_john_allberg_heartbeat_price_afc12081_4304_4878_97df_a160569e3faf
+                attribute: year
+                name: Heartbeat, år
+                suffix: kr/kWh
