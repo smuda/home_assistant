@@ -18,6 +18,7 @@ grafana-dashboards/
   energy-usage/
   energy-usage-monthly/
   zaptec/
+  heartbeat/
 ```
 
 Each module writes one file into the provisioning folder:
@@ -29,6 +30,7 @@ Each module writes one file into the provisioning folder:
 | `energy-usage`         | `Energy_usage.json`          | Energy Usage          |
 | `energy-usage-monthly` | `Energy_usage_monthly.json`  | Energy Usage Monthly  |
 | `zaptec`               | `Zaptec_charging.json`       | Zaptec Charging       |
+| `heartbeat`            | `Heartbeat.json`             | 1KOMMA5 Heartbeat     |
 
 ## Regenerate
 

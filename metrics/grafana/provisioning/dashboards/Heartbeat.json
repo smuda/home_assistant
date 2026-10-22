@@ -1,0 +1,658 @@
+{
+  "uid": "heartbeat-1komma5",
+  "title": "1KOMMA5 Heartbeat",
+  "tags": [
+    "1komma5",
+    "heartbeat",
+    "energy",
+    "battery"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-48h",
+    "to": "now"
+  },
+  "fiscalYearStartMonth": 0,
+  "refresh": "1m",
+  "schemaVersion": 42,
+  "panels": [
+    {
+      "type": "row",
+      "collapsed": false,
+      "title": "Plan mot utfall",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 0,
+      "panels": []
+    },
+    {
+      "type": "state-timeline",
+      "targets": [
+        {
+          "expr": "homeassistant_sensor_state{entity=\"sensor.heartbeat_batteribeslut\"}",
+          "legendFormat": "Beslut"
+        },
+        {
+          "expr": "homeassistant_binary_sensor_state{entity=\"binary_sensor.sh10_0rt_20_battery_no_discharge_active_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Ingen urladdning"
+        }
+      ],
+      "title": "Plan (1KOMMA5-beslut)",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "repeatDirection": "h",
+      "options": {
+        "showValue": "never",
+        "rowHeight": 0.9,
+        "mergeValues": true,
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        },
+        "perPage": 20
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Fri",
+                  "color": "transparent"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Ingen urladdning",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "2": {
+                  "text": "Laddar från nät",
+                  "color": "blue"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "3": {
+                  "text": "Okänt beslut",
+                  "color": "red"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 70
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_electricity_price_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Heartbeat-elpris"
+        }
+      ],
+      "title": "Heartbeat-elpris",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "repeatDirection": "h",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: kr/kWh",
+          "custom": {
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "homeassistant_sensor_power_w{entity=\"sensor.battery_discharging_power_signed\"}",
+          "legendFormat": "Batteri"
+        },
+        {
+          "expr": "homeassistant_sensor_power_w{entity=\"sensor.total_dc_power\"}",
+          "legendFormat": "Solceller"
+        }
+      ],
+      "title": "Batteri (+urladdar/−laddar)",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 0,
+        "y": 14
+      },
+      "repeatDirection": "h",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "custom": {
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "homeassistant_sensor_battery_percent{entity=\"sensor.battery_level\"}",
+          "legendFormat": "SOC"
+        }
+      ],
+      "title": "Laddningsnivå",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 14
+      },
+      "repeatDirection": "h",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "collapsed": false,
+      "title": "Priser",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "id": 0,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_electricity_price_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Heartbeat elpris"
+        },
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_spot_price_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Heartbeat spot"
+        },
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_grid_costs_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Heartbeat nät och skatt"
+        },
+        {
+          "expr": "homeassistant_sensor_unit_sek_per_kwh{entity=\"sensor.nordpool_se3_inkl_skatt_o_nat\"}",
+          "legendFormat": "Husets fullpris"
+        }
+      ],
+      "title": "Heartbeats pris mot husets",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "repeatDirection": "h",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: kr/kWh",
+          "custom": {
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_heartbeat_price_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Heartbeat-pris"
+        },
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_comparison_price_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Jämförpris"
+        }
+      ],
+      "title": "Heartbeat-pris mot jämförpris",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "repeatDirection": "h",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: kr/kWh",
+          "custom": {
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "collapsed": false,
+      "title": "Pengar",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "id": 0,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_grid_supply_cost_today_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Köpt el idag"
+        }
+      ],
+      "title": "Köpt el idag",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 32
+      },
+      "repeatDirection": "h",
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "percentChangeColorMode": "standard",
+        "orientation": ""
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencySEK"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_feed_in_earnings_today_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Såld el idag"
+        }
+      ],
+      "title": "Såld el idag",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 32
+      },
+      "repeatDirection": "h",
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "percentChangeColorMode": "standard",
+        "orientation": ""
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencySEK"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_heartbeat_savings_30_days_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Besparing 30 d"
+        }
+      ],
+      "title": "Besparing 30 d",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 10,
+        "y": 32
+      },
+      "repeatDirection": "h",
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "percentChangeColorMode": "standard",
+        "orientation": ""
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencySEK"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_energy_trader_savings_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Trader-besparing"
+        }
+      ],
+      "title": "Trader-besparing",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 15,
+        "y": 32
+      },
+      "repeatDirection": "h",
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "percentChangeColorMode": "standard",
+        "orientation": ""
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencySEK"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_energy_trader_average_monthly_savings_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Snittbesparing/mån"
+        }
+      ],
+      "title": "Snittbesparing/mån",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 19,
+        "y": 32
+      },
+      "repeatDirection": "h",
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "percentChangeColorMode": "standard",
+        "orientation": ""
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencySEK"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_grid_supply_cost_today_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Köpt el"
+        },
+        {
+          "expr": "{__name__=~\"homeassistant_sensor_.+\", entity=\"sensor.heartbeat_john_allberg_feed_in_earnings_today_afc12081_4304_4878_97df_a160569e3faf\"}",
+          "legendFormat": "Såld el"
+        }
+      ],
+      "title": "Kostnad och intäkt idag",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4169E866C3094E38"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
+      "repeatDirection": "h",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencySEK",
+          "custom": {
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "templating": {},
+  "annotations": {}
+}

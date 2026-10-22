@@ -7,9 +7,9 @@
 
 OUT_DIR := $(CURDIR)/../grafana/provisioning/dashboards
 
-.PHONY: all deploy sungrow energy-import energy-usage energy-usage-monthly zaptec
+.PHONY: all deploy sungrow energy-import energy-usage energy-usage-monthly zaptec heartbeat
 
-all: sungrow energy-import energy-usage energy-usage-monthly zaptec
+all: sungrow energy-import energy-usage energy-usage-monthly zaptec heartbeat
 
 # The local Grafana container (see `make grafana` in ../) bind-mounts
 # ../grafana/provisioning, so regenerating the JSON above is the whole
@@ -40,3 +40,7 @@ energy-usage-monthly:
 zaptec:
 	cd zaptec && go run . > "$(OUT_DIR)/Zaptec_charging.json"
 	@echo "wrote $(OUT_DIR)/Zaptec_charging.json"
+
+heartbeat:
+	cd heartbeat && go run . > "$(OUT_DIR)/Heartbeat.json"
+	@echo "wrote $(OUT_DIR)/Heartbeat.json"
