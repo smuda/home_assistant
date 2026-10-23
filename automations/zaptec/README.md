@@ -269,6 +269,13 @@ fuse. Side effect: while the car charges the rest of the house also
 runs from the grid. It applies all year; in summer that also keeps
 stored solar from the car at night.
 
+While the charge cap is held the automation also turns the 1KOMMA5
+Automatic Mode switch off, and turns it back on otherwise (every
+run, hourly too, so a manual off outside a charge is undone within
+the hour). The optimiser overrode the discharge cap inside its
+windows on 2026-10-22; with it off, 1KOMMA5 falls back to the manual
+settings in its app.
+
 The cap is also held for `hold_after_pause` (600 s) after the pause
 helper changes. The fuse guard decides to resume against the capped
 load, and `laddstatus` lags minutes behind in the cloud, so the guard
@@ -301,7 +308,8 @@ self-consumption.
 Caveat: disabling the automation while capped leaves the cap in
 place. Restore both by hand with `number.set_value` 10600 on
 `number.battery_max_charge_power` and
-`number.battery_max_discharge_power`.
+`number.battery_max_discharge_power`, and turn the Automatic Mode
+switch on.
 
 ## Configuration
 
@@ -339,6 +347,7 @@ The battery charge cap has its own `variables` block in
 - `cap_w` -- battery max charge power while the car charges, W. 1500.
 - `discharge_cap_w` -- battery max discharge power while the car
   charges, W. 10 (entity minimum).
+- `automatic_mode` -- the 1KOMMA5 Automatic Mode switch entity.
 - `restore_w` -- inverter default, restored otherwise, for both
   charge and discharge power, W. 10600.
 - `hold_after_pause` -- seconds the cap is held after the pause

@@ -1,9 +1,8 @@
 // Disables the 1KOMMA5 integration entities that duplicate the Sungrow
-// Modbus, P1 and Zaptec sensors, the Automatic Mode switch (one tap turns
-// the optimiser off), and everything of the second system on the account
-// (not this house). Rules, not ids: an integration reload recreates
-// entities under new ids. Registry state lives in .storage, not YAML, so
-// re-run this after an integration update or re-add.
+// Modbus, P1 and Zaptec sensors, and everything of the second system on
+// the account (not this house). Rules, not ids: an integration reload
+// recreates entities under new ids. Registry state lives in .storage,
+// not YAML, so re-run this after an integration update or re-add.
 // Usage, from the repo root: node 1komma5/scripts/disable_duplicates.mjs
 import { readFileSync } from "node:fs";
 
@@ -15,7 +14,7 @@ const HOUSE_SYSTEM = /_afc12081_4304_4878_97df_a160569e3faf$/;
 const DUPLICATE = new RegExp(
   "[._](grid_feed_\\w+|consumption_power|solar_\\w+|battery_state_of_charge"
   + "|battery_(in|out)_power|battery_energy_(in|out)|ev_chargers_\\w+"
-  + "|heat_pumps_\\w+|automatic_mode)_afc12081");
+  + "|heat_pumps_\\w+)_afc12081");
 
 const wanted = (id) => OTHER_SYSTEM.test(id) || (HOUSE_SYSTEM.test(id) && DUPLICATE.test(id));
 
