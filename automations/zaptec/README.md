@@ -42,8 +42,13 @@ According to [Zaptec's own documentation](https://docs.zaptec.com/docs/dynamic-l
 Changing the current every few seconds makes the VW ID.4 abort
 the session, requiring a manual restart in the Zaptec app.
 Repeated stop/start is also
-[flagged by Zaptec](https://docs.zaptec.com/docs/dynamic-load-balancing-with-the-zaptec-api)
-(`WARNING_MAX_SESSION_RESTART`). The automation therefore:
+[flagged by the charger](https://help.zaptec.com/hc/en-001/articles/32342566434833-Warning-Charging-has-been-stopped-too-many-times)
+("Charging has been stopped too many times", API warning
+[`WARNING_MAX_SESSION_RESTART`](https://github.com/stekker/zaptec/blob/main/data/constants.json)).
+The threshold is firmware-dependent: on Zaptec Go firmware 2.3 and
+later roughly 20 restarts within an hour (or 20 plus one per hour
+since the session began), below 2.3 roughly 20 per session. The
+automation therefore:
 
 - only changes when the new target differs by at least a
   deadband (3 A), and
@@ -83,8 +88,8 @@ paused for the fuse" apart from a normally finished charge, and is
 cleared if the car is unplugged while paused.
 
 Several guards keep this from becoming a rapid stop/resume cascade,
-which can trip Zaptec's WARNING_MAX_SESSION_RESTART and abort the
-car. A fuse-stop is now held a minimum time (`resume_min_hold`,
+which can trip the charger's restart warning (see above) and abort
+the car. A fuse-stop is now held a minimum time (`resume_min_hold`,
 300 s) before auto-resume is allowed. A resume then imposes a short
 re-stop lockout (`restop_lockout`, 30 s) before another stop can
 fire. The resume hysteresis was widened (`resume_hyst` 2 -> 6 A) so
@@ -92,6 +97,9 @@ load must fall further below the stop threshold before resuming, and
 the `laddstatus` trigger is debounced 10 s so a flickering status
 does not re-evaluate the logic repeatedly. Together these damp the
 flapping that would otherwise restart the session too often.
+`resume_min_hold` (300 s) and `restop_lockout` (30 s) are
+self-imposed values chosen for this house, not figures documented by
+Zaptec.
 
 ## How it works
 
@@ -130,14 +138,18 @@ resume can be evaluated) — never while disconnected or merely
 ### Do not disturb Eco Mode
 
 Writing the charger's max current
-[overrides Zaptec's load balancer](https://docs.zaptec.com/docs/dynamic-load-balancing-with-the-zaptec-api)
-and suspends [Eco Mode](https://help.zaptec.com/using-products/smart-charge-with-eco-mode)
-— external current control and Eco Mode cannot be active at the same
-time ([noted in Futurehome's Zaptec integration docs](https://support.futurehome.no/hc/en-no/articles/360055610911-Zaptec)).
-Eco Mode is what delays charging to the cheap night hours. If the
-automation writes the current while the car is disconnected or
-waiting, Eco is suspended and the next plug-in charges immediately at
-the wrong (expensive) time.
+[overrides Zaptec's load balancer](https://docs.zaptec.com/docs/dynamic-load-balancing-with-the-zaptec-api).
+[Eco Mode](https://help.zaptec.com/using-products/smart-charge-with-eco-mode)
+is observed to be suspended by such a write as well. That is
+community knowledge, not a documented API contract: no Zaptec source
+states the mechanism. The closest
+third-party statement is that external current control and Eco Mode
+cannot be active at the same time
+([Futurehome's Zaptec integration docs](https://support.futurehome.no/hc/en-no/articles/360055610911-Zaptec)).
+Eco Mode is what delays charging to the cheap night hours. If a
+write while the car is disconnected or waiting does suspend Eco, the
+next plug-in charges immediately at the wrong (expensive) time, so
+the automation is written as if it does.
 
 So the automation only ever touches the charger while a charge is
 already under way (`connected_charging`). It leaves the charger
@@ -368,8 +380,8 @@ The battery charge cap has its own `variables` block in
   than to an instantaneous spike. That is safe: the fuse tolerates
   brief overcurrent (its time-current curve) and the margin absorbs
   the rest, while the gain is immunity to false stops.
-- Eco Mode coexistence. Because writing the charge current
-  suspends Eco Mode, the automation acts only while
+- Eco Mode coexistence. Because writing the charge current is
+  observed to suspend Eco Mode, the automation acts only while
   `connected_charging` and never pre-empts a waiting session. The
   trade-off: it cannot soft-start the car at 6 A before a session,
   so a charge may briefly draw the stored max for the few seconds
@@ -405,6 +417,12 @@ The battery charge cap has its own `variables` block in
 - Zaptec — dynamic load balancing API (15-minute update guidance;
   maxChargeCurrent overrides the load balancer):
   https://docs.zaptec.com/docs/dynamic-load-balancing-with-the-zaptec-api
+- Zaptec -- Warning: Charging has been stopped too many times
+  (restart thresholds, firmware-dependent):
+  https://help.zaptec.com/hc/en-001/articles/32342566434833-Warning-Charging-has-been-stopped-too-many-times
+- Zaptec API constants including `WARNING_MAX_SESSION_RESTART`
+  (third-party client copy):
+  https://github.com/stekker/zaptec/blob/main/data/constants.json
 - Zaptec — Smart charge with Eco Mode:
   https://help.zaptec.com/using-products/smart-charge-with-eco-mode
 - Zaptec — Charging modes:
