@@ -29,20 +29,24 @@ The grid transfer fee is time-of-use. It is HIGH only when all hold:
 - the hour is 06:00-21:59
 
 Otherwise it is LOW. The full price sensor is then simply
-`spot + energy tax + grid fee`.
+`spot + energy tax + grid fee + trader fees`.
 
 Component values (öre/kWh ex VAT -> SEK/kWh incl VAT), from the
-Vattenfall invoice:
+Vattenfall and 1KOMMA5 invoices:
 
 | Component | öre ex VAT | SEK incl VAT |
 |---|---|---|
 | Energy tax | 36.0 | 0.45 |
 | Grid, high tariff | 61.2 | 0.765 |
 | Grid, low tariff | 24.4 | 0.305 |
-| Trader markup | 0 | 0 |
+| Trader fees (Sep 2026) | 7.75 | 0.096875 |
 
 Update the öre value in the template, not the incl-VAT product; the
-template multiplies by 1.25.
+template multiplies by 1.25. The trader fees are the sum of the
+1KOMMA5 invoice's per-kWh lines (Svenska Kraftnät, Nord Pool,
+balansansvar, ursprungsgaranti) and vary month to month (Aug 2026
+was 5.82), so update them from the latest invoice. The monthly fee
+is fixed and not included.
 
 ## Working-day logic (holiday precision)
 

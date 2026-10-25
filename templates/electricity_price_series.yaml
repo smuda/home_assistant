@@ -28,6 +28,7 @@
 #   - Energy tax:  0.36 * 1.25 = 0.45
 #   - Grid, high:  0.612 * 1.25 = 0.765    (winter, workday, 06-22)
 #   - Grid, low:   0.244 * 1.25 = 0.305
+#   - Trader fees: 0.0775 * 1.25 = 0.096875 (from the latest invoice)
 # High tariff only when month in {1,2,3,11,12} AND workday AND 06<=h<22.
 # Workday: for intervals dated today we honour
 # binary_sensor.workday_sensor_se (holiday precision); for other dates
@@ -84,7 +85,7 @@
             {% set vardag = (wd_today == 'on') if (is_today and wd_today in ['on', 'off']) else (l.weekday() < 5) %}
             {% set dagtid = 6 <= l.hour < 22 %}
             {% set nat = 0.765 if (vinter and vardag and dagtid) else 0.305 %}
-            {% set full = (spot + 0.45 + nat) | round(2) %}
+            {% set full = (spot + 0.45 + 0.096875 + nat) | round(2) %}
             {% set ns.out = ns.out + [[ (as_timestamp(l) * 1000) | int, full ]] %}
           {% endfor %}
           {{ ns.out }}
@@ -99,7 +100,7 @@
             {% set vardag = (wd_today == 'on') if (is_today and wd_today in ['on', 'off']) else (l.weekday() < 5) %}
             {% set dagtid = 6 <= l.hour < 22 %}
             {% set nat = 0.765 if (vinter and vardag and dagtid) else 0.305 %}
-            {% set full = (spot + 0.45 + nat) | round(2) %}
+            {% set full = (spot + 0.45 + 0.096875 + nat) | round(2) %}
             {% set ns.out = ns.out + [[ (as_timestamp(l) * 1000) | int, full ]] %}
           {% endfor %}
           {{ ns.out }}

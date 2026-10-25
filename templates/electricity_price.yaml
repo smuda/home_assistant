@@ -30,13 +30,16 @@
 #                                          this exact id (Energy dashboard
 #                                          depends on it).
 #
-# Full cost = spot + energy tax + grid fee   (all incl. 25 % VAT)
+# Full cost = spot + energy tax + grid fee + trader fees   (all incl. 25 % VAT)
 #
 # Component breakdown (öre/kWh ex VAT -> SEK/kWh incl VAT):
 #   - Energy tax:      36.0  -> 0.45      (Vattenfall invoice)
 #   - Grid, high:      61.2  -> 0.765     (Vattenfall lists 76.5 incl VAT)
 #   - Grid, low:       24.4  -> 0.305     (Vattenfall invoice)
-#   - Trader markup:    0                 (current contract adds none)
+#   - Trader fees:      7.75 -> 0.096875  (1KOMMA5 invoice, Sep 2026)
+#     Sum of the per-kWh lines: Svenska Kraftnät, Nord Pool,
+#     balansansvar, ursprungsgaranti (Påslag elhandel is 0). These vary
+#     month to month (Aug was 5.82); update from the latest invoice.
 #
 # Grid tariff is HIGH only when ALL hold:
 #   - month in {Jan, Feb, Mar, Nov, Dec}
@@ -108,8 +111,9 @@
       state: >
         {% set spot = states('sensor.nord_pool_se3_aktuellt_pris') | float(0) * 1.25 %}
         {% set energiskatt = 0.36 * 1.25 %}
+        {% set elhandel = 0.0775 * 1.25 %}
         {% set nat = states('sensor.elnatsavgift_aktuell') | float(0) %}
-        {{ (spot + nat + energiskatt) | round(2) }}
+        {{ (spot + nat + energiskatt + elhandel) | round(2) }}
       availability: >
         {{ states('sensor.nord_pool_se3_aktuellt_pris') not in
            ['unknown', 'unavailable', 'none'] }}
