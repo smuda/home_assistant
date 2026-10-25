@@ -21,5 +21,6 @@ spot + 0.104 SEK/kWh
 ```
 
 The 10.4 öre is the grid feed-in benefit; change the constant in the
-template if the contract changes. Spot is assumed VAT-inclusive, the
-same assumption as the import sensors -- see `electricity_price.md`.
+template if the contract changes. Spot is used excl. VAT, which is
+correct here: export compensation is paid without VAT, unlike the
+import sensors (see `electricity_price.md`) which add 25 %.
