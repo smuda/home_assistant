@@ -12,10 +12,6 @@
 # otherwise cover the car at ~10 kW, spending grid-bought charge on it.
 # Not during a fuse pause or its hold: the car is stopped then, and the
 # battery covering the house takes load off the fuse.
-# Also turns the 1KOMMA5 Automatic Mode switch off while capped: the
-# optimiser overrides the caps inside its windows, off stops it writing
-# the inverter. Called every run, not only on a change: the switch state
-# lags the cloud. After the repeat because a cloud error aborts the run.
 # No read-back check: reading the register/entity back does not show
 # the limit in force. See README.md.
 id: "1792555200000"
@@ -25,9 +21,8 @@ description: >-
   fuse guard holds it paused, so the car gets the fuse headroom
   before the optimiser's grid charge, and
   number.battery_max_discharge_power while the car charges, so the
-  battery does not feed the car. Turns the 1KOMMA5 Automatic Mode
-  off while the charge is capped. Restores the inverter default and
-  turns it back on otherwise.
+  battery does not feed the car. Restores the inverter default
+  otherwise.
 mode: restart
 
 triggers:
@@ -57,7 +52,6 @@ conditions:
 variables:
   cap_w: 1500 # battery max charge power while the car charges, W
   discharge_cap_w: 10 # same for discharge, W; the entity's minimum
-  automatic_mode: switch.heartbeat_john_allberg_heartbeat_automatic_mode_afc12081_4304_4878_97df_a160569e3faf
   restore_w: 10600 # inverter default, W
   hold_after_pause: 600 # s the cap is held after the pause helper changes
   # Held past a resume: the guard resumed against the capped load, and
@@ -96,6 +90,3 @@ actions:
             value: "{{ discharge_target }}"
         - delay:
             seconds: 30
-  - action: "switch.turn_{{ 'off' if capped else 'on' }}"
-    target:
-      entity_id: "{{ automatic_mode }}"
