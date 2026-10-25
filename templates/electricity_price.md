@@ -37,8 +37,8 @@ Vattenfall invoice:
 | Component | öre ex VAT | SEK incl VAT |
 |---|---|---|
 | Energy tax | 36.0 | 0.45 |
-| Grid, high tariff | 76.5 | 0.95625 |
-| Grid, low tariff | 30.5 | 0.38125 |
+| Grid, high tariff | 61.2 | 0.765 |
+| Grid, low tariff | 24.4 | 0.305 |
 | Trader markup | 0 | 0 |
 
 Update the öre value in the template, not the incl-VAT product; the

@@ -34,8 +34,8 @@
 #
 # Component breakdown (öre/kWh ex VAT -> SEK/kWh incl VAT):
 #   - Energy tax:      36.0  -> 0.45      (Vattenfall invoice)
-#   - Grid, high:      76.5  -> 0.95625
-#   - Grid, low:       30.5  -> 0.38125
+#   - Grid, high:      61.2  -> 0.765     (Vattenfall lists 76.5 incl VAT)
+#   - Grid, low:       24.4  -> 0.305     (Vattenfall invoice)
 #   - Trader markup:    0                 (current contract adds none)
 #
 # Grid tariff is HIGH only when ALL hold:
@@ -87,8 +87,8 @@
       icon: mdi:transmission-tower-import
       state: >
         {% set moms = 1.25 %}
-        {% set nat_hog = 0.765 * moms %}
-        {% set nat_lag = 0.305 * moms %}
+        {% set nat_hog = 0.612 * moms %}
+        {% set nat_lag = 0.244 * moms %}
         {% set vinter = now().month in [1, 2, 3, 11, 12] %}
         {% set wd = states('binary_sensor.workday_sensor_se') %}
         {% set vardag = (wd == 'on') if wd in ['on', 'off'] else (now().weekday() < 5) %}
