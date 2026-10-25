@@ -56,7 +56,7 @@ system uses a Pylontech Force H3 over CAN:
   default for the battery max charge power register (33046). It is
   the upper bound of the max charge, max discharge and forced
   charge/discharge power numbers, so a lower value stops HA from
-  restoring the default limit after the battery has been capped.
+  restoring the default limit after the optimiser has lowered it.
 
 ## 3. Load the package in configuration.yaml
 

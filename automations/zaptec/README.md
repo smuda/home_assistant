@@ -254,70 +254,80 @@ Confirm the resulting entity ids are `sensor.p1_fas_1_filtrerad`,
 `_2_`, `_3_` (Home Assistant derives them from the friendly names).
 Until they exist the automation falls back to the raw P1 sensors.
 
-## Battery charge cap
+## Battery hold
 
 The 1KOMMA5 optimiser's grid charge of the house battery (~9.7 kW,
 ~14 A per phase) counts as household load, so the fuse guard floors
 the car at 6 A. The fuse guard's only lever is the car current, so
-the battery always won.
+the battery always won. In the optimiser's self-consumption windows
+the battery would also cover the car at ~10 kW, spending grid-bought
+charge on it.
 
-`Battery_charge_cap.yaml` caps `number.battery_max_charge_power`
-(Sungrow register 33046) at `cap_w` 1500 W while
-`sensor.zag064494_laddstatus` is `connected_charging` or
-`input_boolean.zaptec_fuse_paused` is on, and restores `restore_w`
-10600 W otherwise. The pause helper is included because a fuse-stop
-shows `connected_finished`, the same as a full car; restoring then
-would block the resume.
+Capping the power limits (33046/33047) did not work: the optimiser
+writes them itself and rewrote them within ~10 s (seen 2026-10-25,
+#10/#11). `Battery_hold.yaml` instead takes the battery out of the
+optimiser's control while the hold condition is true, and writes, in
+this order:
 
-While `laddstatus` is `connected_charging` it also caps
-`number.battery_max_discharge_power` (Sungrow register 33047) at
-`discharge_cap_w` 10 W (the entity minimum; 0 is refused), and
-restores `restore_w` 10600 W otherwise. In the optimiser's
-self-consumption windows the battery otherwise covers the car at
-~10 kW, spending night grid energy on the car and swinging the load
-the fuse guard sees. Not during a fuse pause or its hold: the car is
-stopped then, and the battery covering the house takes load off the
-fuse. Side effect: while the car charges the rest of the house also
-runs from the grid. It applies all year; in summer that also keeps
-stored solar from the car at night.
+1. `select.battery_forced_charge_discharge` to `Stop (default)`.
+2. `select.ems_mode` to `Forced mode`, but only once
+   `sensor.battery_forced_charge_discharge_cmd_raw` reads 204 (0xCC,
+   Stop).
 
-The cap is also held for `hold_after_pause` (600 s) after the pause
-helper changes. The fuse guard decides to resume against the capped
-load, and `laddstatus` lags minutes behind in the cloud, so the guard
-does not run again until it reads `connected_charging`. Restoring at
-the resume would put the battery's ~14 A per phase back on top of the
-restarting car while nothing watches the fuse.
+The order matters: the command select can sit at Forced charge, and
+Forced mode first would start a grid charge. A Stop write can be
+skipped (unavailable entity) or refused without an error, hence the
+gate. It reads the raw sensor because the select maps unknown values
+to `Stop (default)`. Otherwise it writes only
+`select.ems_mode` to `Self-consumption mode (default)`. It never
+writes External EMS (that needs a live heartbeat, 13080 = 12 s, which
+the optimiser sets itself) and never a `number.*` entity.
 
-- The car comes before the grid charge, with no price check: both
-  draw in the same cheap hours, and the battery gets full power back
-  when the car is done.
-- The cap is fixed, not computed from headroom: that would be a
-  second controller on the same headroom as the fuse guard. The fuse
-  guard still floors/stops the car if even with the cap a phase would
-  breach the fuse.
+The hold condition is `sensor.zag064494_laddstatus` is
+`connected_charging`, or `input_boolean.zaptec_fuse_paused` is on, or
+the pause helper changed less than `hold_after_pause` (600 s) ago. The
+pause helper is included because a fuse-stop shows
+`connected_finished`, the same as a full car; releasing then would
+block the resume. The 600 s hold exists because the fuse guard
+decides to resume against the idle battery, and `laddstatus` lags
+minutes behind in the cloud, so the guard does not run again until it
+reads `connected_charging`. Releasing at the resume would put the
+battery back on top of the restarting car while nothing watches the
+fuse.
+
+- The battery is idle during a fuse pause too. That loses the fuse
+  support the battery covering the house would give; decided and
+  accepted.
+- Daytime PV surplus is exported while the battery is held; decided.
+- There is no watchdog if HA dies mid-hold: the battery stays idle,
+  as long as nothing else rewrites the command register, until HA is
+  back and the hourly run releases it. One idle battery day is
+  accepted.
 - It writes three times, 30 s apart, on every transition and hourly.
   Refused writes are silent. An unknown/unavailable `laddstatus`
   skips the run for its first 30 min; after that the hourly rewrite
-  restores, so an outage cannot hold the cap through the next day's
-  solar.
-- While capped, the caps are also rewritten 45 s after each
-  15-minute boundary (:00, :15, :30, :45), because the 1KOMMA5
-  optimiser overrode them right after its window boundaries on
-  2026-10-22 and 10-23.
+  releases. That does not cover `laddstatus` or the pause helper
+  stuck at a hold value, or missing altogether.
+- There is no rewrite after the 15-minute window boundaries. Add it
+  back (a `time_pattern` at `/15`, seconds 45, only while held) if a
+  healthy optimiser is seen overwriting Forced mode.
 - It is a separate automation because the fuse guard's
-  `charging or is_paused` condition would block the restore.
+  `charging or is_paused` condition would block the release.
 
-To verify, note that reading the register or the HA entity back does
-not show the limit in force. Check the measured `sensor.battery_power`
-during forced charge instead: about -1500 W while the car charges,
-back near -9.7 kW after. `sensor.battery_power` should also not go
-positive (discharge) while the car charges, even in
-self-consumption.
+To verify, check that `sensor.battery_power` is about 0 while the car
+charges and that `sensor.ems_mode_selection_raw` reads 2 (Forced),
+then 0 (Self-consumption) after. Not `select.ems_mode`: it shows
+unknown raw values as Self-consumption.
 
-Caveat: disabling the automation while capped leaves the cap in
-place. Restore both by hand with `number.set_value` 10600 on
+Caveat: disabling the automation while held leaves Forced mode in
+place. Restore by hand with `select.select_option`
+`Self-consumption mode (default)` on `select.ems_mode` ("Egen
+forbrukning" in iSolarCloud).
+
+When first deployed, the old caps are not undone: set
 `number.battery_max_charge_power` and
-`number.battery_max_discharge_power`.
+`number.battery_max_discharge_power` to 10600 by hand if the car was
+charging at the time.
 
 ## Configuration
 
@@ -349,15 +359,10 @@ Edit the `variables` block in `Dynamic_fuse_protection.yaml`:
 The moving-average `window_size` for the noise filter lives in
 `sensors/p1_filtered_sensors.yaml`, not here.
 
-The battery charge cap has its own `variables` block in
-`Battery_charge_cap.yaml`:
+The battery hold has its own `variables` block in
+`Battery_hold.yaml`:
 
-- `cap_w` -- battery max charge power while the car charges, W. 1500.
-- `discharge_cap_w` -- battery max discharge power while the car
-  charges, W. 10 (entity minimum).
-- `restore_w` -- inverter default, restored otherwise, for both
-  charge and discharge power, W. 10600.
-- `hold_after_pause` -- seconds the cap is held after the pause
+- `hold_after_pause` -- seconds the hold is kept after the pause
   helper changes. 600.
 
 ## Caveats

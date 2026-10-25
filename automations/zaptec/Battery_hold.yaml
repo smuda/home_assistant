@@ -1,0 +1,101 @@
+# Holds the house battery idle while the car charges. The optimiser's
+# ~9.7 kW grid charge counts as household load, so the fuse guard
+# floors the car at 6 A, and in its self-consumption windows the
+# battery would feed the car with grid-bought charge. Capping the
+# power limits fought the optimiser: it writes 33046/33047 itself and
+# rewrote them within ~10 s (seen 2026-10-25, #10/#11). So instead:
+# Stop on the forced charge/discharge command, then Forced mode on
+# the EMS mode, taking the battery out of the optimiser's control.
+# Order matters: the command select can sit at Forced charge, and
+# Forced mode first would start a grid charge.
+# The pause helper counts as held: a fuse-stop shows
+# connected_finished, same as a full car, and releasing then would
+# block the resume. Reads input_boolean.zaptec_fuse_paused, never
+# writes it.
+# Release writes only Self-consumption. External EMS needs a live
+# heartbeat (13080 = 12 s) that the optimiser sets itself.
+# Forced mode is only written once the raw command register reads
+# 204 (0xCC, Stop): a silently skipped or refused Stop write must not
+# turn into a grid charge. The raw sensor, not the select: the select
+# maps unknown values to Stop. The select's write refreshes the raw
+# sensor right after. No rewrite after the 15-minute windows until a
+# healthy optimiser is seen overwriting Forced mode. See README.md.
+id: "1792555200000"
+alias: Battery hold while the car charges
+description: >-
+  Holds the house battery idle (Stop command, Forced mode) while the
+  car charges or the fuse guard holds it paused, so the car gets the
+  fuse headroom and the battery does not feed it. Releases to
+  Self-consumption mode otherwise.
+mode: restart
+
+triggers:
+  - trigger: state
+    entity_id: sensor.zag064494_laddstatus
+  - trigger: state
+    entity_id: input_boolean.zaptec_fuse_paused
+  - trigger: state
+    entity_id: input_boolean.zaptec_fuse_paused
+    to: "off"
+    for: "00:10:00"
+  # Hourly rewrite: a refused Modbus write is silent, and this also
+  # covers an HA restart.
+  - trigger: time_pattern
+    minutes: 0
+
+conditions:
+  # A status blip must not release the battery mid-charge; keep the
+  # last write. A longer outage releases, so the hold cannot stick
+  # through the next day's solar.
+  - condition: template
+    value_template: >-
+      {{ states('sensor.zag064494_laddstatus') not in ['unknown', 'unavailable']
+         or (now() - states.sensor.zag064494_laddstatus.last_changed)
+            .total_seconds() > 1800 }}
+
+variables:
+  hold_after_pause: 600 # s the hold is kept after the pause helper changes
+  # Held past a resume: the guard resumed against the idle battery, and
+  # laddstatus lags minutes behind in the cloud, so the guard does not
+  # run until it reads connected_charging. Releasing then is unguarded.
+  hold: >-
+    {{ is_state('sensor.zag064494_laddstatus', 'connected_charging')
+       or is_state('input_boolean.zaptec_fuse_paused', 'on')
+       or (now() - states.input_boolean.zaptec_fuse_paused.last_changed)
+          .total_seconds() < hold_after_pause }}
+
+actions:
+  # Three blind writes 30 s apart: the inverter refuses writes
+  # transiently, HA skips an unavailable entity, and neither surfaces
+  # an error. continue_on_error: a failed write must not skip the
+  # next one.
+  - repeat:
+      count: 3
+      sequence:
+        - if: "{{ hold }}"
+          then:
+            - action: select.select_option
+              continue_on_error: true
+              target:
+                entity_id: select.battery_forced_charge_discharge
+              data:
+                option: Stop (default)
+            - if: >-
+                {{ states('sensor.battery_forced_charge_discharge_cmd_raw')
+                   == '204' }}
+              then:
+                - action: select.select_option
+                  continue_on_error: true
+                  target:
+                    entity_id: select.ems_mode
+                  data:
+                    option: Forced mode
+          else:
+            - action: select.select_option
+              continue_on_error: true
+              target:
+                entity_id: select.ems_mode
+              data:
+                option: Self-consumption mode (default)
+        - delay:
+            seconds: 30
