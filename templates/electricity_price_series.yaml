@@ -15,8 +15,8 @@
 #
 # Units: get_prices_for_date returns price in SEK/MWh (verified against
 # the scalar sensors: max 1000.98 SEK/MWh == sensor ...hogsta_pris
-# 1.00098 SEK/kWh). So spot_kWh = price / 1000. The spot value is
-# already VAT-inclusive, same as sensor.nord_pool_se3_aktuellt_pris.
+# 1.00098 SEK/kWh). So spot_kWh = price / 1000. Like
+# sensor.nord_pool_se3_aktuellt_pris it EXCLUDES VAT, hence * 1.25.
 #
 # DRY WARNING -- shared constants
 # -------------------------------
@@ -78,7 +78,7 @@
           {% set ns = namespace(out=[]) %}
           {% for p in today_resp.SE3 | default([]) %}
             {% set l = as_datetime(p.start) | as_local %}
-            {% set spot = p.price / 1000 %}
+            {% set spot = p.price / 1000 * 1.25 %}
             {% set vinter = l.month in [1, 2, 3, 11, 12] %}
             {% set is_today = l.date() == now().date() %}
             {% set vardag = (wd_today == 'on') if (is_today and wd_today in ['on', 'off']) else (l.weekday() < 5) %}
@@ -93,7 +93,7 @@
           {% set ns = namespace(out=[]) %}
           {% for p in tomo_resp.SE3 | default([]) %}
             {% set l = as_datetime(p.start) | as_local %}
-            {% set spot = p.price / 1000 %}
+            {% set spot = p.price / 1000 * 1.25 %}
             {% set vinter = l.month in [1, 2, 3, 11, 12] %}
             {% set is_today = l.date() == now().date() %}
             {% set vardag = (wd_today == 'on') if (is_today and wd_today in ['on', 'off']) else (l.weekday() < 5) %}

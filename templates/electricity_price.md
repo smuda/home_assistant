@@ -76,9 +76,9 @@ covered in `README.md`.
 
 ## Assumptions to re-check if the invoice stops matching
 
-- `sensor.nord_pool_se3_aktuellt_pris` is assumed to be
-  VAT-inclusive. If the Nord Pool integration is set to exclude VAT,
-  change `spot` to `spot * 1.25` in the template.
+- `sensor.nord_pool_se3_aktuellt_pris` excludes VAT (it matches
+  1KOMMA5's spot `price_without_vat`), so the template multiplies
+  `spot` by 1.25.
 - `now()` makes Home Assistant re-render the templates every minute,
   so the 06:00 / 22:00 switch and the midnight workday flip take
   effect within a minute -- no separate time trigger is needed.

@@ -69,9 +69,9 @@
 #
 # Assumptions to re-check if the invoice stops matching
 # -----------------------------------------------------
-#   - sensor.nord_pool_se3_aktuellt_pris is already VAT-inclusive.
-#     If the Nordpool integration excludes VAT, change `spot` to
-#     `spot * 1.25`.
+#   - sensor.nord_pool_se3_aktuellt_pris EXCLUDES VAT (it matches
+#     1KOMMA5's spot price_without_vat), so `spot` is multiplied by
+#     1.25 here.
 #   - Constants are öre ex VAT multiplied by 1.25; update the öre
 #     value, not the product.
 #
@@ -106,7 +106,7 @@
       state_class: measurement
       icon: mdi:transmission-tower
       state: >
-        {% set spot = states('sensor.nord_pool_se3_aktuellt_pris') | float(0) %}
+        {% set spot = states('sensor.nord_pool_se3_aktuellt_pris') | float(0) * 1.25 %}
         {% set energiskatt = 0.36 * 1.25 %}
         {% set nat = states('sensor.elnatsavgift_aktuell') | float(0) %}
         {{ (spot + nat + energiskatt) | round(2) }}
