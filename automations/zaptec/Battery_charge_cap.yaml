@@ -12,6 +12,8 @@
 # otherwise cover the car at ~10 kW, spending grid-bought charge on it.
 # Not during a fuse pause or its hold: the car is stopped then, and the
 # battery covering the house takes load off the fuse.
+# Also rewrites 45 s after each 15-minute window while capped: the
+# optimiser overrides the caps right after its window boundaries.
 # No read-back check: reading the register/entity back does not show
 # the limit in force. See README.md.
 id: "1792555200000"
@@ -38,6 +40,12 @@ triggers:
   # covers an HA restart.
   - trigger: time_pattern
     minutes: 0
+  # After each 1KOMMA5 15-minute window boundary: the optimiser
+  # rewrites the inverter right after it, overriding the caps.
+  - trigger: time_pattern
+    id: window
+    minutes: /15
+    seconds: 45
 
 conditions:
   # A status blip must not restore the battery mid-charge; keep the last
@@ -48,6 +56,10 @@ conditions:
       {{ states('sensor.zag064494_laddstatus') not in ['unknown', 'unavailable']
          or (now() - states.sensor.zag064494_laddstatus.last_changed)
             .total_seconds() > 1800 }}
+  # The window rewrite only while capped; the hourly run covers the
+  # restore.
+  - condition: template
+    value_template: "{{ trigger.id != 'window' or capped }}"
 
 variables:
   cap_w: 1500 # battery max charge power while the car charges, W

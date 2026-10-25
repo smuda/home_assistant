@@ -288,6 +288,10 @@ restarting car while nothing watches the fuse.
   skips the run for its first 30 min; after that the hourly rewrite
   restores, so an outage cannot hold the cap through the next day's
   solar.
+- While capped, the caps are also rewritten 45 s after each
+  15-minute boundary (:00, :15, :30, :45), because the 1KOMMA5
+  optimiser overrode them right after its window boundaries on
+  2026-10-22 and 10-23.
 - It is a separate automation because the fuse guard's
   `charging or is_paused` condition would block the restore.
 
