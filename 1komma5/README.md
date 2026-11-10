@@ -74,12 +74,20 @@ payment, not VAT-adjusted.
   the one bad day is an unforecastable 44 kWh EV charge, not a pricing
   error, and costs about 3 kr. The house turned net importer over the
   month on the back of the last five days. Winter still untested.
+- `analysis-2026-10.md` -- 31.0 days (2026-10-10 -> 2026-11-10), the
+  first window with the winter tariff live. Verdict in short: the
+  battery nets about 300-340 kr/month, almost all arbitrage; the idle
+  holds that look like waste are nearly always right (about 18 kr
+  lost); 1KOMMA5's published price is spot plus a flat 1.4375 SEK/kWh
+  with no time-of-use grid fee, which costs about 2 kr/day in winter.
+  1KOMMA5 captures about 69 % of a perfect-foresight optimum.
 - `report-prompt.md` -- the prompt to hand Claude when writing the
   next month's analysis. Carries the method, the traps, and the
   conventions, so a new report does not re-derive them.
-- `data/` -- archived 15-min windows, committed. Anything rescued from
+- `data/` -- archived windows, committed. Anything rescued from
   Home Assistant's recorder lands here, because that source expires
-  after about ten days.
+  after about ten days. `2026-10*.csv` are the October 2026 inputs to
+  `analyze.py`, `simulate.py` and `prices_1komma5.py`.
 - `scripts/` -- the pull and analysis scripts, so any evaluation is
   reproducible. See below.
 
@@ -107,6 +115,22 @@ same way:
 ```
 python3 analyze.py ../data/2026-09.csv
 ```
+
+The counterfactual comparison (plain self-consumption and a
+perfect-foresight optimum replayed on the actual load, hold valuation,
+1KOMMA5's published price inputs) has its own pull, at 5-min
+resolution with the optimiser's control-state series:
+
+```
+python3 pull_sim.py         # writes sim.csv and prices.csv
+python3 simulate.py         # scenario costs, holds, tariff agreement
+python3 prices_1komma5.py   # decomposes 1KOMMA5's price sensors
+python3 -m unittest test_simulate
+```
+
+The battery constants at the top of `simulate.py` are fitted to the
+October 2026 window. Check its SOC-model line before trusting a new
+window: if the model's end SOC drifts far from the actual, refit.
 
 When VictoriaMetrics has missed a window entirely, `from_hass.py`
 rescues it from Home Assistant's recorder into `data/`. That recorder
