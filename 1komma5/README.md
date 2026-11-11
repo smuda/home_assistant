@@ -74,13 +74,23 @@ payment, not VAT-adjusted.
   the one bad day is an unforecastable 44 kWh EV charge, not a pricing
   error, and costs about 3 kr. The house turned net importer over the
   month on the back of the last five days. Winter still untested.
-- `analysis-2026-10.md` -- 31.0 days (2026-10-10 -> 2026-11-10), the
-  first window with the winter tariff live. Verdict in short: the
-  battery nets about 300-340 kr/month, almost all arbitrage; the idle
-  holds that look like waste are nearly always right (about 18 kr
-  lost); 1KOMMA5's published price is spot plus a flat 1.4375 SEK/kWh
-  with no time-of-use grid fee, which costs about 2 kr/day in winter.
-  1KOMMA5 captures about 69 % of a perfect-foresight optimum.
+- `analysis-2026-10.md` -- full month, 31.0 days (2026-10-01 ->
+  2026-11-01), all on the flat low tariff, with prices before 10-25
+  recomputed on the current template formulas. Verdict in short: the
+  battery nets about 9-11 kr/day, almost all arbitrage; 1KOMMA5
+  captures 79 % of a perfect-foresight optimum, leaving 2.4 kr/day,
+  and its holds cost only 9-18 kr because the day's prices barely
+  moved. Its published price is spot plus a flat 1.4375 SEK/kWh, 0.59
+  above the real low-tariff adder, but that cost only 2.6 kr. Does not
+  carry over to winter.
+- `analysis-2026-11-pre.md` -- preliminary, 2026-11-01 -> 2026-11-11
+  (10.0 days, 7 working days). Verdict in short: 1KOMMA5 captures 64 %
+  of the perfect-foresight saving, leaving about 10 kr/day. It does not
+  fill the battery at night, tops up at midday at day prices, and on
+  days that start full holds while importing and ends the day with
+  charge left. Charging only at night would have been as good as
+  charging any time. The flat price view explains 23 kr of the 98 kr
+  gap. Its holds are a real loss here (34 kr), unlike October.
 - `report-prompt.md` -- the prompt to hand Claude when writing the
   next month's analysis. Carries the method, the traps, and the
   conventions, so a new report does not re-derive them.

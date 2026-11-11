@@ -23,8 +23,8 @@ import subprocess
 from datetime import datetime, timezone
 
 BASE = "http://192.168.40.20:8428/api/v1/query_range"
-START = "2026-10-09T22:00:00Z"   # 2026-10-10 00:00 local (CEST)
-END = "2026-11-09T23:00:00Z"     # 2026-11-10 00:00 local (CET)
+START = "2026-09-30T22:00:00Z"   # 2026-10-01 00:00 local (CEST)
+END = "2026-10-31T23:00:00Z"     # 2026-11-01 00:00 local (CET)
 # Rows at or after END are dropped: the query end is inclusive.
 END_EPOCH = int(datetime.strptime(END, "%Y-%m-%dT%H:%M:%SZ")
                 .replace(tzinfo=timezone.utc).timestamp())
