@@ -296,16 +296,37 @@ sensor is not `off`, there is no discount.
 Check the first nights with the car charging under mode 3/170: the
 data never showed the optimiser absorbing a 6 -> 16 A car step.
 
-Capping the power limits (33046/33047) did not work: the optimiser
-writes them itself and rewrote them within ~10 s (seen 2026-10-25,
-#10/#11). `Battery_hold.yaml` instead takes the battery out of the
-optimiser's control while the hold condition is true, and writes, in
-this order:
+`Battery_hold.yaml` now has one job: stop the battery discharging
+into the car in the optimiser's self-consumption windows
+(`sensor.ems_mode_selection_raw` 0), where it would spend stored
+charge on the car. Fuse headroom for the optimiser's grid charge is
+the fuse guard's job (above). While the car charges (hold condition
+below) it takes the battery out of the optimiser's control and
+writes, in this order:
 
 1. `select.battery_forced_charge_discharge` to `Stop (default)`.
 2. `select.ems_mode` to `Forced mode`, but only once
    `sensor.battery_forced_charge_discharge_cmd_raw` reads 204 (0xCC,
    Stop).
+
+It never fights External EMS. Neither the hold nor the release
+writes while `sensor.ems_mode_selection_raw` is 3, checked live on
+each of the three writes, so a takeover between them stops the rest.
+The test is `!= '3'`, so an unknown/unavailable raw sensor still
+writes and a Modbus blip does not skip the hold. Releasing is gated
+too: writing Self-consumption over a running External EMS knocks the
+optimiser out of control for no gain.
+
+Seen 2026-11-18 (logbook): when the optimiser wants to grid-charge it
+wrote External EMS + Forced charge within about 10 s of every hold
+write, so the hold lost every round and only churned the registers.
+In self-consumption windows the hold won and held (01:49-02:45 UTC).
+The optimiser also takes control back from Forced mode by writing
+External EMS itself when its plan says so (02:45, 04:00), so a
+healthy optimiser does overwrite Forced mode, and the hold now lets
+it. Capping the power limits (33046/33047) did not work either: the
+optimiser writes them itself and rewrote them within ~10 s (seen
+2026-10-25, #10/#11).
 
 The order matters: the command select can sit at Forced charge, and
 Forced mode first would start a grid charge. A Stop write can be
@@ -336,14 +357,17 @@ fuse.
   as long as nothing else rewrites the command register, until HA is
   back and the hourly run releases it. One idle battery day is
   accepted.
-- It writes three times, 30 s apart, on every transition and hourly.
+- It writes three times, 30 s apart, on every transition, hourly and
+  when `sensor.ems_mode_selection_raw` has been 0 for 30 s (the
+  optimiser's window ended mid-charge; the 30 s skips its own brief
+  0 -> 3 flips).
   Refused writes are silent. An unknown/unavailable `laddstatus`
   skips the run for its first 30 min; after that the hourly rewrite
   releases. That does not cover `laddstatus` or the pause helper
   stuck at a hold value, or missing altogether.
-- There is no rewrite after the 15-minute window boundaries. Add it
-  back (a `time_pattern` at `/15`, seconds 45, only while held) if a
-  healthy optimiser is seen overwriting Forced mode.
+- There is no `/15` rewrite after the window boundaries: the
+  optimiser overwrites Forced mode when it wants control, and the
+  mode-0 trigger re-applies the hold when it hands control back.
 - It is a separate automation because the fuse guard's
   `charging or is_paused` condition would block the release.
 
