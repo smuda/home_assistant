@@ -1,0 +1,34 @@
+# Notifies when the fuse guard's check sees a sustained P1 overload,
+# i.e. the optimiser battery did not yield to the car. Fires whether
+# or not the car is charging, so a non-yielding battery is visible.
+# For 60 min after the overload the fuse guard counts the battery as
+# household load; it then retries the discount by design (no latch).
+# See README.md and templates/p1_sustained_overload.md.
+id: "1795046400000"
+alias: P1 sustained overload notification
+description: >-
+  Sends a phone notification when binary_sensor.p1_sustained_overload
+  turns on, with the live P1, battery, EMS and car values.
+mode: single
+
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.p1_sustained_overload
+    to: "on"
+
+conditions: []
+
+actions:
+  - action: notify.mobile_app_johns_iphone_13
+    data:
+      title: "Säkringsvakt: överlast"
+      message: |-
+        Högsta fasström (P1): {{ [ states('sensor.p1_meter_strom_fas_1')|float(0), states('sensor.p1_meter_strom_fas_2')|float(0), states('sensor.p1_meter_strom_fas_3')|float(0) ]|max|round(1) }} A
+        Batterieffekt: {{ states('sensor.battery_power')|float(0)|round(0)|int }} W (belopp)
+        EMS-läge (rå): {{ states('sensor.ems_mode_selection_raw') }}
+        Tvingat kommando (rå): {{ states('sensor.battery_forced_charge_discharge_cmd_raw') }}
+        Bil: {{ states('sensor.zag064494_laddstatus') }}, max {{ states('number.zag064494_max_laddstrom') }} A
+        Säkringsvakten räknar batteriet som hushållslast tills överlasten varit borta i 60 min.
+      data:
+        push:
+          interruption-level: time-sensitive

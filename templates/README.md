@@ -27,6 +27,7 @@ to `configuration.yaml`. Two rules follow from the merge:
 | `export_compensation.yaml` | [export_compensation.md](export_compensation.md) | What you are paid per exported kWh: spot + 10.4 öre/kWh grid feed-in benefit. |
 | `charge_window_price.yaml` | [charge_window_price.md](charge_window_price.md) | Mean all-in price over the next N hours, N from `input_number.elbil_laddfonster_timmar`. |
 | `heartbeat_beslut.yaml` | [heartbeat_beslut.md](heartbeat_beslut.md) | 1KOMMA5 battery plan decision as a number (0-3), so Grafana can draw it. |
+| `p1_sustained_overload.yaml` | [p1_sustained_overload.md](p1_sustained_overload.md) | Highest raw P1 phase at or above 27 A for 60 s: the fuse guard's check that the battery optimiser yielded. |
 
 ## Deploying
 

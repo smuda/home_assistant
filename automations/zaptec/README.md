@@ -257,11 +257,44 @@ Until they exist the automation falls back to the raw P1 sensors.
 ## Battery hold
 
 The 1KOMMA5 optimiser's grid charge of the house battery (~9.7 kW,
-~14 A per phase) counts as household load, so the fuse guard floors
-the car at 6 A. The fuse guard's only lever is the car current, so
-the battery always won. In the optimiser's self-consumption windows
-the battery would also cover the car at ~10 kW, spending grid-bought
-charge on it.
+~14 A per phase) used to count as household load, so the fuse guard
+floored the car at 6 A. The fuse guard's only lever is the car
+current, so the battery always won. In the optimiser's
+self-consumption windows the battery would also cover the car at
+~10 kW, spending grid-bought charge on it.
+
+The fuse guard now ignores that charge while the optimiser is in
+control: `sensor.ems_mode_selection_raw` is 3 (External EMS) and
+`sensor.battery_forced_charge_discharge_cmd_raw` is 170 (forced
+charge). The battery's per-phase share (`sensor.battery_charging_power`
+/ 3 / 230 V, capped at 10 kW) is subtracted from the other load, so
+the car gets the headroom and the battery takes what is left. The
+estimate is slightly below the real grid draw, which errs on the safe
+side. Data 2026-10-15 to 11-18 shows the optimiser holds the highest
+phase at about 25.6 A on P1 and cuts the battery within a median 10 s
+(worst 31 s) when load rises. It never sustained an overload; the
+only full-power run over the fuse for minutes was our own Forced-mode
+charge.
+
+Fallback: `binary_sensor.p1_sustained_overload` (templates/) turns on
+when the highest raw P1 phase is at or above 27 A for 60 s, meaning
+the battery is not yielding. The guard then counts the battery as
+household load again, as before, and stays that way for 60 min after
+the overload ends, so the fuse cools down. After that the guard uses
+the discount again. This retry is by design, with no latch: the
+optimiser's battery control runs on the local 1KOMMA5 Heartbeat box
+(a gridX gateway on the LAN, Modbus TCP to the inverter), not in the
+cloud. If the box dies, the External EMS heartbeat (13080 = 12 s)
+lapses, the mode leaves 3 and the discount turns off by itself. A box
+that is alive but not yielding is a faulty or misbehaving component;
+it costs at most one 60-120 s overload pulse per hour.
+`Overload_notify.yaml` sends a phone notification each time the
+sensor turns on. The sensor turning on also triggers the guard at
+once. If the EMS or command sensors are unavailable, or the overload
+sensor is not `off`, there is no discount.
+
+Check the first nights with the car charging under mode 3/170: the
+data never showed the optimiser absorbing a 6 -> 16 A car step.
 
 Capping the power limits (33046/33047) did not work: the optimiser
 writes them itself and rewrote them within ~10 s (seen 2026-10-25,
