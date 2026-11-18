@@ -371,10 +371,20 @@ fuse.
 - It is a separate automation because the fuse guard's
   `charging or is_paused` condition would block the release.
 
-To verify, check that `sensor.battery_power` is about 0 while the car
-charges and that `sensor.ems_mode_selection_raw` reads 2 (Forced),
-then 0 (Self-consumption) after. Not `select.ems_mode`: it shows
-unknown raw values as Self-consumption.
+To verify, read `sensor.ems_mode_selection_raw` while the car
+charges. Not `select.ems_mode`: it shows unknown raw values as
+Self-consumption.
+
+- 2 (Forced): the hold is in force, and `sensor.battery_power`
+  should be about 0.
+- 3 (External EMS): the optimiser has taken over, which is normal.
+  With command raw 170 it grid-charges the battery, and the busiest
+  P1 phase should settle around 25.6 A while the car still gets the
+  fuse guard's headroom.
+- 0 (Self-consumption) for more than about a minute: the hold
+  should have re-applied; check the automation's trace.
+
+After the car is done it should read 0 or 3.
 
 Caveat: disabling the automation while held leaves Forced mode in
 place. Restore by hand with `select.select_option`
