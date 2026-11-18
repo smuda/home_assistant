@@ -144,17 +144,12 @@ Stopping the car outright, chosen when holding it at the floor
 current would no longer keep the phase under the fuse.
 _Avoid_: emergency stop, cutoff, trip
 
-**Charge cap**:
-A ceiling on how fast the house battery may charge, held while the
-car charges or the fuse guard holds it paused, so the car gets the
-fuse headroom first. See also the discharge cap.
-_Avoid_: battery cap, battery throttle, charge limit
-
-**Discharge cap**:
-The house battery's discharge held at its minimum while the car
-charges, so the battery does not spend its charge on the car. Not
-held during a fuse pause, when the battery may cover the house.
-_Avoid_: discharge block, battery lock
+**Battery hold**:
+The house battery held idle, neither charging nor discharging, and
+out of the optimiser's control, while the car charges, the fuse
+guard holds it paused, or shortly after a resume. Released back to
+the optimiser otherwise.
+_Avoid_: forced stop, battery lock, charge cap
 
 **Full**:
 A dehumidifier's tank being full, inferred from the compressor having
