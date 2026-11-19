@@ -31,6 +31,9 @@ lasting failures: a duplicate `..._2` entity, a broken entity
 reference, a helper that no longer exists where an automation reads
 it.
 
+To deploy from an agent session, follow "Deploying from an agent
+session" in `DEPLOY.md`.
+
 ## Agent skills
 
 ### Issue tracker
