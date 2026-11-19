@@ -10,3 +10,6 @@ ip_bans.yaml
 
 # Per-agent scratch memory: local notes, not project config.
 .claude/agent-memory/
+
+# Node deps for the Sandcastle agent loop.
+node_modules/

@@ -1,0 +1,11 @@
+{
+  "name": "home_assistant",
+  "private": true,
+  "scripts": {
+    "sandcastle": "npx tsx .sandcastle/main.mts"
+  },
+  "devDependencies": {
+    "@ai-hero/sandcastle": "^0.14.0",
+    "tsx": "^4.23.15"
+  }
+}
