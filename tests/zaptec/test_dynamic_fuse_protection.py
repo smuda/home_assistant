@@ -6,11 +6,12 @@ templates/p1_sustained_overload.yaml, evaluates the automation's
 rendered as a Jinja template, output parsed back to a native type) with
 mocked HA template functions, and checks the decision variables.
 
-Run from the repo root:
+Run from the repo root with `make test`, or directly:
 
     python3 -m unittest discover -s tests/zaptec
 
-Needs jinja2 and pyyaml (not part of the repo's tooling).
+Needs jinja2 and pyyaml; `make test` installs them into .venv from
+requirements-dev.txt.
 """
 
 import datetime as dt

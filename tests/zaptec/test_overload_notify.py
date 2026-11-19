@@ -4,11 +4,12 @@ Loads the real automation, checks its trigger/action shape, renders the
 notification title and message with mocked HA template functions, and
 checks that its id is unique across automations/.
 
-Run from the repo root:
+Run from the repo root with `make test`, or directly:
 
     python3 -m unittest discover -s tests/zaptec
 
-Needs jinja2 and pyyaml (not part of the repo's tooling).
+Needs jinja2 and pyyaml; `make test` installs them into .venv from
+requirements-dev.txt.
 """
 
 import unittest
