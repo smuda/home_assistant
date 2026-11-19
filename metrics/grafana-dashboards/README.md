@@ -23,14 +23,14 @@ grafana-dashboards/
 
 Each module writes one file into the provisioning folder:
 
-| Module                 | Output JSON                  | Dashboard             |
-| ---------------------- | ---------------------------- | --------------------- |
-| `sungrow`              | `sungrow.json`               | Sungrow – Sol & Batteri |
-| `energy-import`        | `Energy_import.json`         | Energy import         |
-| `energy-usage`         | `Energy_usage.json`          | Energy Usage          |
-| `energy-usage-monthly` | `Energy_usage_monthly.json`  | Energy Usage Monthly  |
-| `zaptec`               | `Zaptec_charging.json`       | Zaptec Charging       |
-| `heartbeat`            | `Heartbeat.json`             | 1KOMMA5 Heartbeat     |
+| Module                 | Output JSON                 | Dashboard               |
+| ---------------------- | --------------------------- | ----------------------- |
+| `sungrow`              | `sungrow.json`              | Sungrow - Sol & Batteri |
+| `energy-import`        | `Energy_import.json`        | Energy import           |
+| `energy-usage`         | `Energy_usage.json`         | Energy Usage            |
+| `energy-usage-monthly` | `Energy_usage_monthly.json` | Energy Usage Monthly    |
+| `zaptec`               | `Zaptec_charging.json`      | Zaptec Charging         |
+| `heartbeat`            | `Heartbeat.json`            | 1KOMMA5 Heartbeat       |
 
 ## Regenerate
 
@@ -54,7 +54,8 @@ provisioning folder, regenerating the JSON is the whole deploy;
 
 - Metrics come from Home Assistant's Prometheus export scraped by
   VictoriaMetrics. Names follow HA's unit/device-class scheme
-  (`homeassistant_sensor_power_w`, `homeassistant_sensor_battery_percent`,
+  (`homeassistant_sensor_power_w`,
+  `homeassistant_sensor_battery_percent`,
   `homeassistant_sensor_energy_kwh`, ...), filtered by the `entity`
   label. The entity id is never itself the metric name.
 - The datasource is referenced by the uid `P4169E866C3094E38`, the

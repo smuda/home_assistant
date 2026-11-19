@@ -21,11 +21,11 @@ Window: 2026-07-15 15:15 -> 2026-08-01 00:00 (16.4 days, 15-min
 resolution). Sign conventions were verified against SOC change and
 export power before analysis.
 
-| Post | kWh |
-|---|---|
-| Grid import | 316.5 |
-| Grid export | 171.9 |
-| Battery charged | 253.9 |
+| Post               | kWh   |
+| ------------------ | ----- |
+| Grid import        | 316.5 |
+| Grid export        | 171.9 |
+| Battery charged    | 253.9 |
 | Battery discharged | 226.7 |
 
 Price model, from the repo's own template sensors:
@@ -68,12 +68,12 @@ loss, because the house was usually exporting at the time -- there was
 no import in that hour to avoid. The honest measure is energy sold
 before noon that the house had to re-import after 16:00 the same day:
 
-| Day | sold | at | re-imported | at | loss |
-|---|---|---|---|---|---|
-| 2026-07-17 | 3.9 | 1.17 | 3.1 | 1.98 | 2.5 kr |
-| 2026-07-18 | 6.4 | 0.91 | 13.7 | 1.11 | 1.3 kr |
-| 2026-07-24 | 1.1 | 1.13 | 1.2 | 1.78 | 0.7 kr |
-| 2026-07-29 | 1.8 | 0.73 | 2.5 | 0.97 | 0.4 kr |
+| Day        | sold | at   | re-imported | at   | loss   |
+| ---------- | ---- | ---- | ----------- | ---- | ------ |
+| 2026-07-17 | 3.9  | 1.17 | 3.1         | 1.98 | 2.5 kr |
+| 2026-07-18 | 6.4  | 0.91 | 13.7        | 1.11 | 1.3 kr |
+| 2026-07-24 | 1.1  | 1.13 | 1.2         | 1.78 | 0.7 kr |
+| 2026-07-29 | 1.8  | 0.73 | 2.5         | 0.97 | 0.4 kr |
 
 Total 5.0 kr over 16 days, well under a krona a day. Neither of the
 two large episodes involved EV charging: the first charging session in
@@ -87,12 +87,12 @@ otherwise worth, discharging is worth the import it avoids or the
 export it earns -- gives the whole picture. Round-trip losses fall out
 of the arithmetic, since discharge is smaller than charge.
 
-| Flow | kWh | kr | kr/kWh |
-|---|---|---|---|
-| Charged from grid | 107.3 | -119.1 | 1.11 paid |
-| Charged from PV | 146.6 | -67.1 | 0.46 export forgone |
+| Flow                | kWh   | kr     | kr/kWh              |
+| ------------------- | ----- | ------ | ------------------- |
+| Charged from grid   | 107.3 | -119.1 | 1.11 paid           |
+| Charged from PV     | 146.6 | -67.1  | 0.46 export forgone |
 | Discharged to house | 210.5 | +317.1 | 1.51 import avoided |
-| Discharged to grid | 16.3 | +15.9 | 0.98 earned |
+| Discharged to grid  | 16.3  | +15.9  | 0.98 earned         |
 
 Net: +147 kr over 16.4 days, about 9 kr/day. The optimiser is making
 money; the 5 kr of adder-blindness above is noise against it.
@@ -104,13 +104,13 @@ generated. That is the point of pairing panels with a battery: solar
 made at midday, when a kWh is cheap, is spent in the evening when it
 is dear.
 
-| Where it went | kWh | kr | kr/kWh |
-|---|---|---|---|
-| Used as it was generated | 235.6 | 298.3 | 1.27 avoided |
+| Where it went                   | kWh   | kr    | kr/kWh       |
+| ------------------------------- | ----- | ----- | ------------ |
+| Used as it was generated        | 235.6 | 298.3 | 1.27 avoided |
 | Stored, used later by the house | 107.2 | 163.9 | 1.53 avoided |
-| Stored, later sold to the grid | 11.4 | 11.1 | 0.97 earned |
-| Exported as it was generated | 155.7 | 70.8 | 0.45 earned |
-| Total | 509.9 | 544 | |
+| Stored, later sold to the grid  | 11.4  | 11.1  | 0.97 earned  |
+| Exported as it was generated    | 155.7 | 70.8  | 0.45 earned  |
+| Total                           | 509.9 | 544   |              |
 
 544 kr over 16.4 days, about 33 kr/day.
 

@@ -47,7 +47,7 @@ the config check fails on a missing secret.
 The two battery keys assume a Sungrow SBR/SBH battery, but this
 system uses a Pylontech Force H3 over CAN:
 
-- `sungrow_modbus_sbr_device_address: 200` — leave as is. It points
+- `sungrow_modbus_sbr_device_address: 200` -- leave as is. It points
   at a Sungrow battery sub-device that does not exist here, so the
   per-module cell reads fail silently. Core battery data (SOC,
   power, voltage, current, SOH, temperature) is read from the
@@ -71,7 +71,7 @@ homeassistant:
 
 If a `homeassistant:` key already exists, add only the `packages:`
 block under it; do not duplicate the key. Do not combine this with
-`!include_dir_named packages` on the same line — pick one form. The
+`!include_dir_named packages` on the same line -- pick one form. The
 named-include form above loads the single file directly and does
 not need a `packages/` directory.
 

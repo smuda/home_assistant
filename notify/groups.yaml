@@ -10,5 +10,5 @@
 - platform: group
   name: parents
   services:
-    - service: mobile_app_johns_iphone_13 # John
-    - service: mobile_app_trollunge # Sara
+    - service: mobile_app_johns_iphone_13  # John
+    - service: mobile_app_trollunge  # Sara

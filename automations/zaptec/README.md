@@ -5,22 +5,26 @@ current so the main fuse is never exceeded when the car charges at
 the same time as other heavy loads (electric heating, washing
 machine, etc.) on a winter day.
 
-Crucially, it changes the current rarely — frequent changes
+Crucially, it changes the current rarely -- frequent changes
 make the car abort the session (see below).
 
 ## Why this exists
 
 Zaptec has two independent layers:
 
-1. [Available current mode](https://help.zaptec.com/using-products/charging-modes) — *how* current is regulated:
-   - Standard charging — fixed allocation, no dynamic
+1. [Available current
+   mode](https://help.zaptec.com/using-products/charging-modes) -- *how*
+   current is regulated:
+   - Standard charging -- fixed allocation, no dynamic
      load balancing. *(This is what I run.)*
    - Scheduled charging.
-   - Automatic charging (Zaptec Sense / APM) — regulates
+   - Automatic charging (Zaptec Sense / APM) -- regulates
      current in real time against the household's total load and
      protects the main fuse, but starts charging immediately
      and therefore ignores cheap-hour timing.
-2. [Eco Mode](https://help.zaptec.com/using-products/smart-charge-with-eco-mode) — a separate feature layer on top of the mode
+2. [Eco
+   Mode](https://help.zaptec.com/using-products/smart-charge-with-eco-mode)
+   -- a separate feature layer on top of the mode
    above. It decides *when* to charge (departure time, distance,
    price area -> cheapest Nord Pool hours). *(I run Eco: ready by
    06:00, 100 km, my price area.)*
@@ -33,7 +37,8 @@ current` entity can be written regardless of the active mode.
 
 ## Keep changes infrequent (important)
 
-According to [Zaptec's own documentation](https://docs.zaptec.com/docs/dynamic-load-balancing-with-the-zaptec-api):
+According to [Zaptec's own
+documentation](https://docs.zaptec.com/docs/dynamic-load-balancing-with-the-zaptec-api):
 
 > "Frequent changes to the charge current and phase may cause the
 > vehicle to interrupt the charging session ... we recommend
@@ -42,7 +47,8 @@ According to [Zaptec's own documentation](https://docs.zaptec.com/docs/dynamic-l
 Changing the current every few seconds makes the VW ID.4 abort
 the session, requiring a manual restart in the Zaptec app.
 Repeated stop/start is also
-[flagged by the charger](https://help.zaptec.com/hc/en-001/articles/32342566434833-Warning-Charging-has-been-stopped-too-many-times)
+[flagged by the
+charger](https://help.zaptec.com/hc/en-001/articles/32342566434833-Warning-Charging-has-been-stopped-too-many-times)
 ("Charging has been stopped too many times", API warning
 [`WARNING_MAX_SESSION_RESTART`](https://github.com/stekker/zaptec/blob/main/data/constants.json)).
 The threshold is firmware-dependent: on Zaptec Go firmware 2.3 and
@@ -65,7 +71,7 @@ charging session, not continuously.
 Flooring at 6 A only protects the fuse while 6 A of car current
 actually fits under it. If non-car load on a phase is so high that
 even 6 A would push that phase to/over the fuse, keeping the car at
-6 A no longer helps — the main fuse would trip for the whole
+6 A no longer helps -- the main fuse would trip for the whole
 house, which can disrupt or damage computers and other
 electronics. A controlled stop of the car is the lesser harm (same
 probability, smaller consequence), so in that case the automation
@@ -75,11 +81,11 @@ presses stop once and sets the helper
 "Presses stop" is literal: it calls `button.press` on the charger's
 `button.zag064494_stoppa_laddning` entity (the same action as the
 Stop button in the Zaptec app). It does not set the charge
-current to 0 — that is not a stop, and the current is already
+current to 0 -- that is not a stop, and the current is already
 floored at the 6 A minimum. Resume is the matching
 `button.zag064494_ateruppta_laddning` press.
 
-It is a single, deliberate stop in a genuine emergency — not the
+It is a single, deliberate stop in a genuine emergency -- not the
 rapid cycling that made the car abort. When household load falls
 back below the threshold (with a small hysteresis), the automation
 presses resume and clears the helper, so charging restarts
@@ -140,14 +146,17 @@ resume can be evaluated) -- never while disconnected or merely
 ### Do not disturb Eco Mode
 
 Writing the charger's max current
-[overrides Zaptec's load balancer](https://docs.zaptec.com/docs/dynamic-load-balancing-with-the-zaptec-api).
-[Eco Mode](https://help.zaptec.com/using-products/smart-charge-with-eco-mode)
+[overrides Zaptec's load
+balancer](https://docs.zaptec.com/docs/dynamic-load-balancing-with-the-zaptec-api).
+[Eco
+Mode](https://help.zaptec.com/using-products/smart-charge-with-eco-mode)
 is observed to be suspended by such a write as well. That is
 community knowledge, not a documented API contract: no Zaptec source
 states the mechanism. The closest
 third-party statement is that external current control and Eco Mode
 cannot be active at the same time
-([Futurehome's Zaptec integration docs](https://support.futurehome.no/hc/en-no/articles/360055610911-Zaptec)).
+([Futurehome's Zaptec integration
+docs](https://support.futurehome.no/hc/en-no/articles/360055610911-Zaptec)).
 Eco Mode is what delays charging to the cheap night hours. If a
 write while the car is disconnected or waiting does suspend Eco, the
 next plug-in charges immediately at the wrong (expensive) time, so
@@ -160,14 +169,14 @@ Eco Mode keeps full control over *when* to charge; this automation
 only limits the current *once Eco has started a session*. There is
 no installation-level `AvailableCurrent` entity available on this
 account (charger-level permissions only), so `max_laddstrom` is the
-only lever — hence the strict "charging-only" gate rather than a
+only lever -- hence the strict "charging-only" gate rather than a
 gentler one.
 
 ### Noise filtering (avoids false stops)
 
 The stop and 24 A emergency paths react to the meter reading, so a
 transient spike from the P1 meter (a one-sample blip while the car
-draws far less) could otherwise trigger a false stop — the very
+draws far less) could otherwise trigger a false stop -- the very
 abort we are trying to avoid. To prevent that, `P1_phase_current`
 above is read from filtered sensors
 (`sensor.p1_fas_{1,2,3}_filtrerad`, see
@@ -200,7 +209,7 @@ therefore judges the feed's *liveness* from the raw meter's
 `last_reported` (it advances on every meter push, even an unchanged
 value; no push for `max_age` seconds means the feed is dead). If the
 feed is dead, the phase's non-car load is set to `failsafe_other`
-(18 A), which floors the car to 6 A — a meter dropout is never read
+(18 A), which floors the car to 6 A -- a meter dropout is never read
 as zero load (which would wrongly allow the full 16 A). If even the
 raw meter is gone, the same fail-safe applies. The wake-up trigger
 still watches the raw
@@ -209,7 +218,7 @@ See "Filtered P1 sensors" under setup below.
 
 The `outlier` filter is deliberately not used: it can reject a
 *genuine* large load step (above its radius) indefinitely, hiding
-real load — a fail-unsafe blind spot for a fuse guard. The moving
+real load -- a fail-unsafe blind spot for a fuse guard. The moving
 average has no such failure mode.
 
 ### Battery grid charge
@@ -251,16 +260,16 @@ data never showed the optimiser absorbing a 6 -> 16 A car step.
 
 ## Entities used
 
-| Entity | Role |
-|---|---|
-| `number.zag064494_max_laddstrom` | Control — max charge current, 0-16 A, step 1 |
-| `button.zag064494_stoppa_laddning` | Control — stop charging (last resort) |
-| `button.zag064494_ateruppta_laddning` | Control — resume charging |
-| `input_boolean.zaptec_fuse_paused` | Helper — set while paused for the fuse |
-| `sensor.zag064494_strom_fas_1..3` | Charger's own current per phase |
-| `sensor.zag064494_laddstatus` | Charge status (`connected_charging`, ...) |
-| `sensor.p1_meter_strom_fas_1..3` | Household total current per phase (incl. the car) |
-| `sensor.p1_fas_1..3_filtrerad` | Filtered P1 current used by the stop/emergency logic |
+| Entity                                | Role                                                 |
+| ------------------------------------- | ---------------------------------------------------- |
+| `number.zag064494_max_laddstrom`      | Control -- max charge current, 0-16 A, step 1        |
+| `button.zag064494_stoppa_laddning`    | Control -- stop charging (last resort)               |
+| `button.zag064494_ateruppta_laddning` | Control -- resume charging                           |
+| `input_boolean.zaptec_fuse_paused`    | Helper -- set while paused for the fuse              |
+| `sensor.zag064494_strom_fas_1..3`     | Charger's own current per phase                      |
+| `sensor.zag064494_laddstatus`         | Charge status (`connected_charging`, ...)            |
+| `sensor.p1_meter_strom_fas_1..3`      | Household total current per phase (incl. the car)    |
+| `sensor.p1_fas_1..3_filtrerad`        | Filtered P1 current used by the stop/emergency logic |
 
 `ZAG064494` is the Zaptec Go (device type "Apollo"); network is
 `tn_3_phase`, installation type "Smart". The 16 A cap is the
@@ -276,10 +285,10 @@ the toggle, and the filename is the object id:
 `input_boolean.reload`. Note that `deploy-helpers` syncs with
 `--delete`: moving or renaming this file in the repo without
 repointing the include first removes the entity on the live host, and
-the automation reads its `last_changed` unguarded. The automation uses it to remember a
-fuse-pause so it can resume automatically and not confuse that with a
-normally finished charge; its `last_changed` is the stop/resume
-timestamp, so nothing else should toggle it.
+the automation reads its `last_changed` unguarded. The automation uses
+it to remember a fuse-pause so it can resume automatically and not
+confuse that with a normally finished charge; its `last_changed` is the
+stop/resume timestamp, so nothing else should toggle it.
 
 ### Filtered P1 sensors
 
@@ -411,32 +420,32 @@ charging at the time.
 
 Edit the `variables` block in `Dynamic_fuse_protection.yaml`:
 
-- `fuse` — main fuse, amps per phase. Currently 25.
-- `margin` — safety headroom, amps. Currently 3 (effective cap
+- `fuse` -- main fuse, amps per phase. Currently 25.
+- `margin` -- safety headroom, amps. Currently 3 (effective cap
   22 A/phase). Covers control latency and the gap between the rare
   normal updates.
-- `deadband` — minimum change in amps before writing. 3.
-- `min_interval` — minimum seconds between normal changes. 900
+- `deadband` -- minimum change in amps before writing. 3.
+- `min_interval` -- minimum seconds between normal changes. 900
   (15 min, per Zaptec). Lower to e.g. `300` (5 min) if 15 min feels
   too sluggish; safety still rests on the emergency path.
-- `emergency_phase` — any phase at/above this (amps) forces an
+- `emergency_phase` -- any phase at/above this (amps) forces an
   immediate reduction regardless of the interval. 24 (1 A below
   the fuse).
-- `resume_hyst` — extra amps non-car load must fall below the stop
+- `resume_hyst` -- extra amps non-car load must fall below the stop
   threshold before resuming, to avoid stop/resume flapping. 6.
-- `resume_min_hold` — minimum seconds a fuse-stop is held before
+- `resume_min_hold` -- minimum seconds a fuse-stop is held before
   auto-resume is allowed, so a stop is not undone immediately. 300.
-- `restop_lockout` — minimum seconds after a resume before another
+- `restop_lockout` -- minimum seconds after a resume before another
   stop may fire, damping a stop/resume cascade. 30.
-- `max_age` — seconds without a raw P1 update before the feed is
+- `max_age` -- seconds without a raw P1 update before the feed is
   treated as dead and the fail-safe kicks in. 60.
-- `failsafe_other` — assumed non-car load per phase (amps) when P1
+- `failsafe_other` -- assumed non-car load per phase (amps) when P1
   is dead; 18 floors the car to 6 A without forcing a stop. 18.
 - `batt_max_w` -- SH10RT charge rating in watts, caps a bad battery
   power reading. 10000.
 - `nominal_v` -- volts used to turn battery watts into per-phase
   amps. 230.
-- `ev_min` / `ev_max` — 6 and 16 (do not exceed the installer cap).
+- `ev_min` / `ev_max` -- 6 and 16 (do not exceed the installer cap).
 
 The moving-average `window_size` for the noise filter lives in
 `sensors/p1_filtered_sensors.yaml`, not here.
@@ -457,7 +466,7 @@ The battery hold has its own `variables` block in
   time-current curve cover that. The 24 A emergency path is the
   fast safety net.
 - Stop only as a last resort. For ordinary load swings it never
-  pauses — it floors at 6 A — because frequent stop/start is what
+  pauses -- it floors at 6 A -- because frequent stop/start is what
   makes the car abort. It stops *only* when even 6 A would breach
   the fuse, i.e. when not stopping would trip the whole-house main
   fuse anyway. That is a single deliberate stop, and it auto-resumes
@@ -477,7 +486,7 @@ The battery hold has its own `variables` block in
 - Mode is not visible in HA. The integration exposes no entity
   for the available-current mode or Eco Mode (custom-components/zaptec
   [issue #153](https://github.com/custom-components/zaptec/issues/153)),
-  so Eco cannot be read or toggled from HA — it
+  so Eco cannot be read or toggled from HA -- it
   is set in the Zaptec app. Standard charging + Eco is assumed.
 
 ## Testing
@@ -488,8 +497,8 @@ The battery hold has its own `variables` block in
 1. Plug in and start charging; confirm `max_laddstrom` settles at
    a sensible value.
 2. Turn on a heavy load on the constrained phase (phase 3 here) and
-   confirm the current steps down — once, after the deadband is
-   exceeded — rather than oscillating.
+   confirm the current steps down -- once, after the deadband is
+   exceeded -- rather than oscillating.
 3. Confirm no phase in `sensor.p1_meter_strom_fas_*` exceeds the
    fuse, and that the session does NOT abort.
 4. To exercise the last-resort path, drive non-car load on one phase
@@ -501,7 +510,7 @@ The battery hold has its own `variables` block in
 
 ## References
 
-- Zaptec — dynamic load balancing API (15-minute update guidance;
+- Zaptec -- dynamic load balancing API (15-minute update guidance;
   maxChargeCurrent overrides the load balancer):
   https://docs.zaptec.com/docs/dynamic-load-balancing-with-the-zaptec-api
 - Zaptec -- Warning: Charging has been stopped too many times
@@ -510,11 +519,11 @@ The battery hold has its own `variables` block in
 - Zaptec API constants including `WARNING_MAX_SESSION_RESTART`
   (third-party client copy):
   https://github.com/stekker/zaptec/blob/main/data/constants.json
-- Zaptec — Smart charge with Eco Mode:
+- Zaptec -- Smart charge with Eco Mode:
   https://help.zaptec.com/using-products/smart-charge-with-eco-mode
-- Zaptec — Charging modes:
+- Zaptec -- Charging modes:
   https://help.zaptec.com/using-products/charging-modes
-- Futurehome — Zaptec (external control cannot run with Eco Mode):
+- Futurehome -- Zaptec (external control cannot run with Eco Mode):
   https://support.futurehome.no/hc/en-no/articles/360055610911-Zaptec
 - VW ID.4 charging interruptions (community reports):
   https://www.vwidtalk.com/threads/id-4-charging-issues-without-specific-faults-resolutions.1647/

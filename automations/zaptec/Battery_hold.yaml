@@ -66,7 +66,7 @@ conditions:
             .total_seconds() > 1800 }}
 
 variables:
-  hold_after_pause: 600 # s the hold is kept after the pause helper changes
+  hold_after_pause: 600  # s the hold is kept after the pause helper changes
   # Held past a resume: the guard resumed against the idle battery, and
   # laddstatus lags minutes behind in the cloud, so the guard does not
   # run until it reads connected_charging. Releasing then is unguarded.

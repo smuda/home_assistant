@@ -21,14 +21,14 @@ with. They are the same values the live template sensors use, see
 are quoted ex VAT; the analyses use the incl-VAT column, since that
 is what is actually paid.
 
-| Component | ex VAT | incl VAT (x1.25) |
-|---|---|---|
-| Energy (Nord Pool spot) | spot | spot |
-| Trader markup | 0 | 0 |
-| Energy tax | 0.360 | 0.450 |
-| Grid transfer, high tariff | 0.765 | 0.95625 |
-| Grid transfer, low tariff | 0.305 | 0.38125 |
-| Grid feed-in benefit (export) | 0.104 | 0.104 |
+| Component                     | ex VAT | incl VAT (x1.25) |
+| ----------------------------- | ------ | ---------------- |
+| Energy (Nord Pool spot)       | spot   | spot             |
+| Trader markup                 | 0      | 0                |
+| Energy tax                    | 0.360  | 0.450            |
+| Grid transfer, high tariff    | 0.765  | 0.95625          |
+| Grid transfer, low tariff     | 0.305  | 0.38125          |
+| Grid feed-in benefit (export) | 0.104  | 0.104            |
 
 Formulas, SEK/kWh incl VAT:
 
