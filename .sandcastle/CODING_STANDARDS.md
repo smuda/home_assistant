@@ -89,9 +89,9 @@ includes expect it.
   render its Jinja against mocked states. If you change a file they
   cover, update the tests to match. Do not add another test
   framework.
-- The sandbox cannot run them (no Python). State in the PR that the
-  maintainer should run them, with the command from the suite's
-  README or `python3 -m unittest discover -s tests/<suite>`.
+- The sandbox runs them. From the repo root, run every suite under
+  `tests/` with `python3 -m unittest discover -s tests/<suite>`. They
+  must pass.
 
 ## Docs
 
