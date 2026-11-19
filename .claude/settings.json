@@ -9,7 +9,17 @@
       "CI/CD: none (no .github/workflows). Deploy is manual and outward-facing: make deploy rsyncs over SSH to the live Home Assistant at homeassistant.local and reloads automations/templates/scripts. Treat make deploy and any deploy-* / reload-* target as a change to live home automation -- confirm before running. make pull-config writes back into config/."
     ]
   },
+  "permissions": {
+    "allow": [
+      "Bash(make deploy:*)",
+      "Bash(make check-ssh:*)"
+    ]
+  },
   "sandbox": {
+    "excludedCommands": [
+      "make deploy*",
+      "make check-ssh*"
+    ],
     "network": {
       "allowedDomains": [
         "192.168.40.20:8428"
