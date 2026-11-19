@@ -145,10 +145,12 @@ current would no longer keep the phase under the fuse.
 _Avoid_: emergency stop, cutoff, trip
 
 **Battery hold**:
-The house battery held idle, neither charging nor discharging, and
-out of the optimiser's control, while the car charges, the fuse
-guard holds it paused, or shortly after a resume. Released back to
-the optimiser otherwise.
+The house battery held idle, neither charging nor discharging, while
+the car charges, the fuse guard holds it paused, or shortly after a
+resume, so it does not discharge into the car in the optimiser's
+self-consumption windows. Stands aside, writing nothing, while the
+optimiser is in External EMS. Released back to the optimiser
+otherwise.
 _Avoid_: forced stop, battery lock, charge cap
 
 **Full**:

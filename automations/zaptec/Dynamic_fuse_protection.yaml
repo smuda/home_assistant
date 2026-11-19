@@ -13,6 +13,9 @@
 # touching it while Eco is waiting makes the car charge immediately
 # instead of at the cheap night hours. Let Eco decide WHEN; this only
 # limits the current once a charge is under way.
+# Ignores the house battery's grid charge while the optimiser yields
+# to the fuse, and counts it as load again on a sustained P1
+# overload.
 # Requires helper: input_boolean.zaptec_fuse_paused. See README.md.
 id: "1781429136630"
 alias: Zaptec dynamic fuse protection (charge current)
@@ -24,7 +27,10 @@ description: >-
   Normally floors at 6 A rather than stopping; only when even 6 A
   would still breach the fuse does it stop the car, resuming
   automatically once household load falls. Acts only while charging
-  so it does not disturb Zaptec Eco Mode scheduling.
+  so it does not disturb Zaptec Eco Mode scheduling. Ignores the
+  battery's grid charge while the 1KOMMA5 optimiser is in control and
+  yielding; counts it as household load again on a sustained P1
+  overload.
 mode: single
 max_exceeded: silent
 
@@ -42,6 +48,11 @@ triggers:
       - sensor.p1_meter_strom_fas_2
       - sensor.p1_meter_strom_fas_3
     above: 23
+  # Act at once when the optimiser fails to yield, not at the next
+  # minute tick.
+  - trigger: state
+    entity_id: binary_sensor.p1_sustained_overload
+    to: "on"
 
 conditions:
   # Run only while actually charging, or while we hold a fuse-pause
@@ -63,6 +74,8 @@ variables:
   ev_max: 16 # installer hardware cap
   max_age: 60 # P1 data older than this (s) is treated as a dropout
   failsafe_other: 18 # assumed other-phase load (A) when P1 is dead
+  batt_max_w: 10000 # SH10RT battery charge rating, caps a bad reading
+  nominal_v: 230 # battery W -> per-phase A (SH10RT charges all three phases evenly)
   current_max: "{{ states('number.zag064494_max_laddstrom')|int(0) }}"
   # Charger current: raw, never filtered. The Zaptec sensor updates
   # only every few minutes (cloud), and a `filter` sensor recomputes
@@ -88,12 +101,28 @@ variables:
   v1: "{{ states('sensor.p1_fas_1_filtrerad') if states('sensor.p1_fas_1_filtrerad') not in ['unknown','unavailable'] else states('sensor.p1_meter_strom_fas_1') }}"
   v2: "{{ states('sensor.p1_fas_2_filtrerad') if states('sensor.p1_fas_2_filtrerad') not in ['unknown','unavailable'] else states('sensor.p1_meter_strom_fas_2') }}"
   v3: "{{ states('sensor.p1_fas_3_filtrerad') if states('sensor.p1_fas_3_filtrerad') not in ['unknown','unavailable'] else states('sensor.p1_meter_strom_fas_3') }}"
-  # Other (non-car) load per phase. When the P1 feed is dead, fail
-  # SAFE to failsafe_other so the car floors to 6 A — never read a
-  # dropout as zero load, which would let it allow the full 16 A.
-  o1: "{{ [ v1|float(0) - c1, 0 ]|max if live1 else failsafe_other }}"
-  o2: "{{ [ v2|float(0) - c2, 0 ]|max if live2 else failsafe_other }}"
-  o3: "{{ [ v3|float(0) - c3, 0 ]|max if live3 else failsafe_other }}"
+  # Optimiser grid-charging (External EMS, command raw 170). The
+  # sustained-overload sensor checks that it yields;
+  # is_state(..., 'off') gives no discount when that sensor is
+  # unavailable, unknown or missing (fail safe). Relies on External
+  # EMS stopping on a lapsed heartbeat (13080 = 12 s): if the
+  # Heartbeat box dies, the mode leaves 3 and the discount ends. 230 V
+  # nominal and AC-side losses put the estimate below the real grid
+  # draw, the safe side.
+  optimiser_charging: >-
+    {{ states('sensor.ems_mode_selection_raw') == '3'
+       and states('sensor.battery_forced_charge_discharge_cmd_raw') == '170'
+       and is_state('binary_sensor.p1_sustained_overload', 'off') }}
+  batt_a: >-
+    {{ ([ [ states('sensor.battery_charging_power')|float(0), 0 ]|max,
+          batt_max_w ]|min / 3 / nominal_v) if optimiser_charging else 0 }}
+  # Other (non-car, non-yielding-battery) load per phase. When the P1
+  # feed is dead, fail SAFE to failsafe_other so the car floors to
+  # 6 A -- never read a dropout as zero load, which would let it allow
+  # the full 16 A.
+  o1: "{{ [ v1|float(0) - c1 - batt_a, 0 ]|max if live1 else failsafe_other }}"
+  o2: "{{ [ v2|float(0) - c2 - batt_a, 0 ]|max if live2 else failsafe_other }}"
+  o3: "{{ [ v3|float(0) - c3 - batt_a, 0 ]|max if live3 else failsafe_other }}"
   other_max: "{{ [o1, o2, o3]|max }}"
   # Lowest per-phase headroom against the (fuse - margin) cap.
   headroom: "{{ [ cap - o1, cap - o2, cap - o3 ]|min }}"
@@ -102,7 +131,8 @@ variables:
   secs_since: >-
     {{ (now() - states.number.zag064494_max_laddstrom.last_changed)
        .total_seconds() }}
-  # Real phase total (other + car) for the near-fuse emergency cut.
+  # Phase total (other + car) for the near-fuse emergency cut. Excludes
+  # the yielding optimiser charge, so it is not the real P1 total then.
   ptot_max: "{{ [ o1 + c1, o2 + c2, o3 + c3 ]|max }}"
   emergency: "{{ ptot_max >= emergency_phase }}"
   status: "{{ states('sensor.zag064494_laddstatus') }}"
@@ -120,9 +150,9 @@ variables:
   # falls with the car at once after a reduction, while filtered still
   # holds up to 20 s of the old car current and, against the capped c,
   # would read as household load; filtered still smooths a raw spike.
-  s1: "{{ [ [ v1|float(0), states('sensor.p1_meter_strom_fas_1')|float(0) ]|min - c1, 0 ]|max if live1 else failsafe_other }}"
-  s2: "{{ [ [ v2|float(0), states('sensor.p1_meter_strom_fas_2')|float(0) ]|min - c2, 0 ]|max if live2 else failsafe_other }}"
-  s3: "{{ [ [ v3|float(0), states('sensor.p1_meter_strom_fas_3')|float(0) ]|min - c3, 0 ]|max if live3 else failsafe_other }}"
+  s1: "{{ [ [ v1|float(0), states('sensor.p1_meter_strom_fas_1')|float(0) ]|min - c1 - batt_a, 0 ]|max if live1 else failsafe_other }}"
+  s2: "{{ [ [ v2|float(0), states('sensor.p1_meter_strom_fas_2')|float(0) ]|min - c2 - batt_a, 0 ]|max if live2 else failsafe_other }}"
+  s3: "{{ [ [ v3|float(0), states('sensor.p1_meter_strom_fas_3')|float(0) ]|min - c3 - batt_a, 0 ]|max if live3 else failsafe_other }}"
   # Even the 6 A minimum would push a phase to/over the fuse: the
   # car cannot help, so a controlled stop beats a tripped main fuse.
   must_stop: "{{ [s1, s2, s3]|max + ev_min >= fuse }}"

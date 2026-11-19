@@ -1,0 +1,20 @@
+# P1 sustained overload: the Zaptec fuse guard's check that the
+# optimiser's battery yielded to the car. See
+# p1_sustained_overload.md.
+#
+# Reads the RAW P1 phases. No availability template: an unavailable
+# P1 reads 0 here, and the guard's own P1 liveness check covers it.
+#
+# Part of the merged `template:` list (see README.md for the
+# file-format rules).
+
+- binary_sensor:
+    - name: "P1 sustained overload"
+      unique_id: p1_sustained_overload
+      device_class: problem
+      delay_on: "00:01:00"
+      delay_off: "01:00:00"
+      state: >
+        {{ [ states('sensor.p1_meter_strom_fas_1')|float(0),
+             states('sensor.p1_meter_strom_fas_2')|float(0),
+             states('sensor.p1_meter_strom_fas_3')|float(0) ]|max >= 27 }}

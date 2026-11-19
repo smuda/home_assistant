@@ -1,12 +1,18 @@
-# Holds the house battery idle while the car charges. The optimiser's
-# ~9.7 kW grid charge counts as household load, so the fuse guard
-# floors the car at 6 A, and in its self-consumption windows the
-# battery would feed the car with grid-bought charge. Capping the
-# power limits fought the optimiser: it writes 33046/33047 itself and
-# rewrote them within ~10 s (seen 2026-10-25, #10/#11). So instead:
-# Stop on the forced charge/discharge command, then Forced mode on
-# the EMS mode, taking the battery out of the optimiser's control.
-# Order matters: the command select can sit at Forced charge, and
+# Stops the house battery discharging into the car in the optimiser's
+# self-consumption windows (EMS mode raw 0): stored charge would be
+# spent on the car. Holds it idle while the car charges: Stop on the
+# forced charge/discharge command, then Forced mode on the EMS mode.
+# Never fights the optimiser's External EMS (raw 3), which it uses to
+# grid-charge or peak-shave: neither hold nor release writes while
+# the raw mode is 3. Seen 2026-11-18: the optimiser rewrote External
+# EMS + command raw 170 within ~10 s of every hold write, so the hold
+# lost every round and only churned the registers. It also takes
+# control back from our Forced mode by itself when its plan says so.
+# Fuse headroom for its grid charge is the fuse guard's job now (it
+# ignores that charge while the optimiser yields), not this one's.
+# Capping the power limits (33046/33047) did not work either: the
+# optimiser writes them itself (seen 2026-10-25, #10/#11).
+# Order matters: the command select can sit at `Forced charge`, and
 # Forced mode first would start a grid charge.
 # The pause helper counts as held: a fuse-stop shows
 # connected_finished, same as a full car, and releasing then would
@@ -18,15 +24,15 @@
 # 204 (0xCC, Stop): a silently skipped or refused Stop write must not
 # turn into a grid charge. The raw sensor, not the select: the select
 # maps unknown values to Stop. The select's write refreshes the raw
-# sensor right after. No rewrite after the 15-minute windows until a
-# healthy optimiser is seen overwriting Forced mode. See README.md.
+# sensor right after. See README.md.
 id: "1792555200000"
 alias: Battery hold while the car charges
 description: >-
   Holds the house battery idle (Stop command, Forced mode) while the
-  car charges or the fuse guard holds it paused, so the car gets the
-  fuse headroom and the battery does not feed it. Releases to
-  Self-consumption mode otherwise.
+  car charges or the fuse guard holds it paused, so the battery does
+  not discharge into the car in self-consumption windows. Releases to
+  Self-consumption mode otherwise. Writes nothing while the optimiser
+  is in control (External EMS), so it never fights its grid charge.
 mode: restart
 
 triggers:
@@ -38,6 +44,12 @@ triggers:
     entity_id: input_boolean.zaptec_fuse_paused
     to: "off"
     for: "00:10:00"
+  # The optimiser's window ended mid-charge: re-apply the hold. The
+  # 30 s skips its own brief 0 -> 3 flips.
+  - trigger: state
+    entity_id: sensor.ems_mode_selection_raw
+    to: "0"
+    for: "00:00:30"
   # Hourly rewrite: a refused Modbus write is silent, and this also
   # covers an HA restart.
   - trigger: time_pattern
@@ -72,30 +84,34 @@ actions:
   - repeat:
       count: 3
       sequence:
-        - if: "{{ hold }}"
+        # Live each iteration: a takeover between iterations stops
+        # further writes. != so a Modbus blip still writes.
+        - if: "{{ states('sensor.ems_mode_selection_raw') != '3' }}"
           then:
-            - action: select.select_option
-              continue_on_error: true
-              target:
-                entity_id: select.battery_forced_charge_discharge
-              data:
-                option: Stop (default)
-            - if: >-
-                {{ states('sensor.battery_forced_charge_discharge_cmd_raw')
-                   == '204' }}
+            - if: "{{ hold }}"
               then:
+                - action: select.select_option
+                  continue_on_error: true
+                  target:
+                    entity_id: select.battery_forced_charge_discharge
+                  data:
+                    option: Stop (default)
+                - if: >-
+                    {{ states('sensor.battery_forced_charge_discharge_cmd_raw')
+                       == '204' }}
+                  then:
+                    - action: select.select_option
+                      continue_on_error: true
+                      target:
+                        entity_id: select.ems_mode
+                      data:
+                        option: Forced mode
+              else:
                 - action: select.select_option
                   continue_on_error: true
                   target:
                     entity_id: select.ems_mode
                   data:
-                    option: Forced mode
-          else:
-            - action: select.select_option
-              continue_on_error: true
-              target:
-                entity_id: select.ems_mode
-              data:
-                option: Self-consumption mode (default)
+                    option: Self-consumption mode (default)
         - delay:
             seconds: 30
