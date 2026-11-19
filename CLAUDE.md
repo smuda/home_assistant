@@ -14,6 +14,8 @@ Apply `CODING_STANDARDS.md` when writing or reviewing a change.
   not curly ones. If a Swedish term genuinely needs accented letters
   in prose, that is tolerated; the firm rule is no non-ASCII
   punctuation or symbols.
+- `make lint` checks this, and the pre-commit hook runs
+  `make test lint`.
 
 ## Changes to the live instance
 

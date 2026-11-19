@@ -1,0 +1,3 @@
+#!/bin/sh
+# Versioned hook. Copied into .git/hooks by `make install-hooks`.
+exec make test lint

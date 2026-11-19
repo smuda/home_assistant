@@ -1,4 +1,4 @@
-# Deploy this repo's blueprints/config to the live Home Assistant.
+# Deploy, test and lint this repo's config for the live Home Assistant.
 #
 # One-time prerequisite (security step, done in the HA UI):
 #   Settings -> Apps -> Advanced SSH & Web Terminal -> Configuration,
@@ -9,6 +9,9 @@
 #   make check-ssh      # verify the SSH channel is up
 #   make deploy         # rsync blueprint(s) + reload automations
 #   make verify-deploy  # after deploy: which automations are loaded
+#   make test           # run the Python test suites
+#   make lint           # markdownlint, ASCII check, yamllint
+#   make install-hooks  # once (and after hook edits): install the pre-commit hook
 #
 # Override host/user/key/token on the command line if they differ, e.g.
 #   make deploy HA_USER=hassio
@@ -94,7 +97,12 @@ DASHBOARDS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/dashboards/
 # lands in the repo.
 CONFIG_LOCAL := config
 
-.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-helpers deploy-dashboards reload-automations reload-templates reload-scripts reload-helpers verify-deploy pull-config check-ssh
+# Dev venv for test/lint.
+VENV     := .venv
+VENV_PY   := $(VENV)/bin/python
+YAML_DIRS := automations templates sensors helpers scripts notify dashboards blueprints
+
+.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-helpers deploy-dashboards reload-automations reload-templates reload-scripts reload-helpers verify-deploy pull-config check-ssh test lint install-hooks
 
 check-ssh:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'echo SSH OK on $$(hostname)' \
@@ -209,3 +217,36 @@ deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors depl
 	@echo "Deployed blueprint + templates + automations + sensors + notify + scripts + helpers + dashboards on $(HA_HOST)."
 	@echo "Note: changed platform sensors and notify groups need a HA restart."
 	@echo "Note: a brand-new YAML dashboard needs a HA restart once; later edits show on browser refresh."
+
+# The stamp file makes pip run only when requirements-dev.txt changes,
+# not on every invocation.
+$(VENV)/.installed: requirements-dev.txt
+	@test -x $(VENV_PY) || python3 -m venv $(VENV)
+	$(VENV_PY) -m pip install -q -r requirements-dev.txt
+	@touch $@
+
+# make stops at the first failing suite.
+test: $(VENV)/.installed
+	$(VENV_PY) -m unittest discover -s tests/zaptec
+	$(VENV_PY) -m unittest discover -s tests/verify_deploy
+	$(VENV_PY) -m unittest discover -s tests/check_ascii
+	cd 1komma5/scripts && ../../$(VENV_PY) -m unittest test_simulate
+
+# Runs every check even after a failure, so one pass reports all
+# findings, then fails if any check did.
+lint: $(VENV)/.installed
+	@status=0; \
+	  git ls-files -z '*.md' | xargs -0 markdownlint -- || status=1; \
+	  git ls-files -z '*.md' | xargs -0 $(VENV_PY) -I tools/check_ascii.py || status=1; \
+	  $(VENV)/bin/yamllint --strict $(YAML_DIRS) || status=1; \
+	  exit $$status
+
+# Copies the versioned hook into git's own hooks dir rather than setting
+# core.hooksPath: hooksPath would make git run ANY hook type (e.g.
+# post-checkout on `git switch`) from the agent-writable working tree.
+# A copy in .git/hooks runs only pre-commit, and the sandbox protects
+# .git/. --git-common-dir, not `--git-path hooks`, because the latter
+# follows core.hooksPath. Rerun after changing .githooks/pre-commit.
+# Run by the maintainer: agents cannot write .git/.
+install-hooks:
+	install -m 755 .githooks/pre-commit "$$(git rev-parse --git-common-dir)/hooks/pre-commit"

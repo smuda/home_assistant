@@ -2,7 +2,8 @@
 
 Not collected by unittest (the file name does not match `test*.py`);
 the test files import it because the start directory is on sys.path.
-Needs jinja2 and pyyaml (not part of the repo's tooling).
+Needs jinja2 and pyyaml; `make test` installs them into .venv from
+requirements-dev.txt.
 """
 
 import datetime as dt

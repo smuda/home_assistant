@@ -16,3 +16,6 @@ node_modules/
 
 # Sandcastle agent tokens; also ignored by .sandcastle/.gitignore.
 .sandcastle/.env
+
+# Local test/lint virtualenv created by `make test` / `make lint`.
+.venv/

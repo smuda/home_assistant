@@ -1,0 +1,6 @@
+extends: default
+ignore: |
+  scripts/_wip/
+rules:
+  line-length: disable
+  document-start: disable
