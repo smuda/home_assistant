@@ -24,10 +24,10 @@ is expected and harmless.
 
 See [INSTALL.md](INSTALL.md) for the step-by-step setup.
 
-## Why local Modbus, not the 1KOMMA5° cloud
+## Why local Modbus, not the 1KOMMA5 cloud
 
 The primary goal is solar and battery data in VictoriaMetrics.
-Reading Sungrow directly beats a 1KOMMA5° cloud integration for
+Reading Sungrow directly beats a 1KOMMA5 cloud integration for
 that job:
 
 - Local: no cloud dependency, no rate limits, no breakage when a
@@ -36,9 +36,9 @@ that job:
 - Full coverage: PV, battery, grid import/export, house load, and
   EMS control, all without a third party in the path.
 
-The only thing the 1KOMMA5° cloud adds is the dynamic electricity
+The only thing the 1KOMMA5 cloud adds is the dynamic electricity
 price, and that is already covered by the existing Nord Pool
-integration. So no 1KOMMA5° integration is used.
+integration. So no 1KOMMA5 integration is used.
 
 ## Data of interest
 

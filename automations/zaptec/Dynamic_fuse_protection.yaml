@@ -62,20 +62,20 @@ conditions:
     value_template: "{{ charging or is_paused }}"
 
 variables:
-  fuse: 25 # main fuse, amps per phase
-  margin: 3 # safety headroom, amps
-  deadband: 3 # min amps difference before changing
-  min_interval: 900 # min seconds between normal changes (>= 15 min)
-  emergency_phase: 24 # any phase at/above this -> immediate cut
-  resume_hyst: 6 # extra amps load must fall before resuming (widened to damp flap)
-  resume_min_hold: 300 # min seconds a fuse-stop is held before resume is allowed
-  restop_lockout: 30 # min seconds after a resume before another stop is allowed
-  ev_min: 6 # Zaptec Go minimum charge current
-  ev_max: 16 # installer hardware cap
-  max_age: 60 # P1 data older than this (s) is treated as a dropout
-  failsafe_other: 18 # assumed other-phase load (A) when P1 is dead
-  batt_max_w: 10000 # SH10RT battery charge rating, caps a bad reading
-  nominal_v: 230 # battery W -> per-phase A (SH10RT charges all three phases evenly)
+  fuse: 25  # main fuse, amps per phase
+  margin: 3  # safety headroom, amps
+  deadband: 3  # min amps difference before changing
+  min_interval: 900  # min seconds between normal changes (>= 15 min)
+  emergency_phase: 24  # any phase at/above this -> immediate cut
+  resume_hyst: 6  # extra amps load must fall before resuming (widened to damp flap)
+  resume_min_hold: 300  # min seconds a fuse-stop is held before resume is allowed
+  restop_lockout: 30  # min seconds after a resume before another stop is allowed
+  ev_min: 6  # Zaptec Go minimum charge current
+  ev_max: 16  # installer hardware cap
+  max_age: 60  # P1 data older than this (s) is treated as a dropout
+  failsafe_other: 18  # assumed other-phase load (A) when P1 is dead
+  batt_max_w: 10000  # SH10RT battery charge rating, caps a bad reading
+  nominal_v: 230  # battery W -> per-phase A (SH10RT charges all three phases evenly)
   current_max: "{{ states('number.zag064494_max_laddstrom')|int(0) }}"
   # Charger current: raw, never filtered. The Zaptec sensor updates
   # only every few minutes (cloud), and a `filter` sensor recomputes

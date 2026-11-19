@@ -15,9 +15,9 @@ actually paid, not just the raw spot.
 
 ## Sensors
 
-| Entity | Role |
-|---|---|
-| `sensor.elnatsavgift_aktuell` | The grid transfer fee in effect right now. All the time-of-use and working-day logic lives here. |
+| Entity                                 | Role                                                                                                                                                                                                                                                                                          |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sensor.elnatsavgift_aktuell`          | The grid transfer fee in effect right now. All the time-of-use and working-day logic lives here.                                                                                                                                                                                              |
 | `sensor.nordpool_se3_inkl_skatt_o_nat` | Full imported-kWh cost. Reuses `elnatsavgift_aktuell` and adds spot + energy tax, so the tariff logic is not duplicated. The sensor's name is chosen so its slug is this entity id, which the Energy dashboard depends on -- keeping the id reproducible from this repo on a clean reinstall. |
 
 ## How the tariff works
@@ -34,12 +34,12 @@ Otherwise it is LOW. The full price sensor is then simply
 Component values (öre/kWh ex VAT -> SEK/kWh incl VAT), from the
 Vattenfall and 1KOMMA5 invoices:
 
-| Component | öre ex VAT | SEK incl VAT |
-|---|---|---|
-| Energy tax | 36.0 | 0.45 |
-| Grid, high tariff | 61.2 | 0.765 |
-| Grid, low tariff | 24.4 | 0.305 |
-| Trader fees (Sep 2026) | 7.75 | 0.096875 |
+| Component              | öre ex VAT | SEK incl VAT |
+| ---------------------- | ---------- | ------------ |
+| Energy tax             | 36.0       | 0.45         |
+| Grid, high tariff      | 61.2       | 0.765        |
+| Grid, low tariff       | 24.4       | 0.305        |
+| Trader fees (Sep 2026) | 7.75       | 0.096875     |
 
 Update the öre value in the template, not the incl-VAT product; the
 template multiplies by 1.25. The trader fees are the sum of the

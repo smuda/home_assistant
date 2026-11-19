@@ -14,12 +14,12 @@ resolution), the whole month. SOC ran 82 % to 77 %, so the battery
 ends marginally emptier than it started and charge exceeds discharge
 by 12 kWh.
 
-| Post | kWh |
-|---|---|
-| Grid import | 456.1 |
-| Grid export | 370.4 |
-| Battery charged | 400.0 |
-| Battery discharged | 387.9 |
+| Post                | kWh   |
+| ------------------- | ----- |
+| Grid import         | 456.1 |
+| Grid export         | 370.4 |
+| Battery charged     | 400.0 |
+| Battery discharged  | 387.9 |
 | EV charged (Zaptec) | 249.9 |
 
 The house was a net importer over the month, by 86 kWh. That is the
@@ -56,12 +56,12 @@ price, PV-sourced at the export price it gives up), and discharging is
 worth the import it avoids or the export it earns. Round-trip losses
 fall out of the arithmetic, since discharge is smaller than charge.
 
-| Flow | kWh | kr | kr/kWh |
-|---|---|---|---|
-| Charged from grid | 120.5 | -191.4 | 1.59 paid |
-| Charged from PV | 279.5 | -157.5 | 0.56 export forgone |
+| Flow                | kWh   | kr     | kr/kWh              |
+| ------------------- | ----- | ------ | ------------------- |
+| Charged from grid   | 120.5 | -191.4 | 1.59 paid           |
+| Charged from PV     | 279.5 | -157.5 | 0.56 export forgone |
 | Discharged to house | 303.2 | +512.4 | 1.69 import avoided |
-| Discharged to grid | 84.7 | +115.9 | 1.37 earned |
+| Discharged to grid  | 84.7  | +115.9 | 1.37 earned         |
 
 Net: +280 kr over 31 days, about 9 kr/day, level with July's 9. The
 battery is making money, and the expensive grid-charging during the
@@ -78,13 +78,13 @@ generated. That is the point of pairing panels with a battery: solar
 made at midday, when a kWh is cheap, is spent in the evening when it
 is dear.
 
-| Where it went | kWh | kr | kr/kWh |
-|---|---|---|---|
-| Used as it was generated | 324.1 | 489.3 | 1.51 avoided |
+| Where it went                   | kWh   | kr    | kr/kWh       |
+| ------------------------------- | ----- | ----- | ------------ |
+| Used as it was generated        | 324.1 | 489.3 | 1.51 avoided |
 | Stored, used later by the house | 205.8 | 322.9 | 1.57 avoided |
-| Stored, later sold to the grid | 65.5 | 93.9 | 1.43 earned |
-| Exported as it was generated | 285.8 | 168.4 | 0.59 earned |
-| Total | 881.2 | 1074 | |
+| Stored, later sold to the grid  | 65.5  | 93.9  | 1.43 earned  |
+| Exported as it was generated    | 285.8 | 168.4 | 0.59 earned  |
+| Total                           | 881.2 | 1074  |              |
 
 1074 kr over 31.0 days, about 35 kr/day, against July's 33.
 

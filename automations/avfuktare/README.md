@@ -20,11 +20,11 @@ signaturen vi larmar på.
 
 Uppmätt på en riktig full-cykel (Otto, 2026-07-04):
 
-| Läge                     | Effekt          | Längd i mätningen |
-|--------------------------|-----------------|-------------------|
-| Avfuktar (kompressor på) | ~234 W, stabilt | 08:27-11:40       |
-| FULL (kompressor stoppad)| 0 W, platt      | 11:41-14:37 (~3h) |
-| Tömd, igång igen         | ~234 W          | från 14:38        |
+| Läge                      | Effekt          | Längd i mätningen |
+| ------------------------- | --------------- | ----------------- |
+| Avfuktar (kompressor på)  | ~234 W, stabilt | 08:27-11:40       |
+| FULL (kompressor stoppad) | 0 W, platt      | 11:41-14:37 (~3h) |
+| Tömd, igång igen          | ~234 W          | från 14:38        |
 
 Full-läget är alltså ~0 W, inte fläktnivå. Ett tidigt stickprov
 visade ~34 W en kort stund, men det var en övergång vid
@@ -78,11 +78,11 @@ på, så det är inget problem här.
 
 ## Filer
 
-| Fil                              | Roll |
-|----------------------------------|------|
-| `tank_full_notify.blueprint.yaml`| Blueprint - själva logiken, en instans per avfuktare |
-| `inneforrad_otto.yaml`           | Aktiv instans för Otto (Shelly + Tuya) |
-| `uteforrad.yaml`                 | Instans för uteförrådet (Shelly, ingen Tuya); byt ut plugg-id:na innan omladdning |
+| Fil                               | Roll                                                                              |
+| --------------------------------- | --------------------------------------------------------------------------------- |
+| `tank_full_notify.blueprint.yaml` | Blueprint - själva logiken, en instans per avfuktare                              |
+| `inneforrad_otto.yaml`            | Aktiv instans för Otto (Shelly + Tuya)                                            |
+| `uteforrad.yaml`                  | Instans för uteförrådet (Shelly, ingen Tuya); byt ut plugg-id:na innan omladdning |
 
 Effektsensorn och pluggens on/off läggs också till i prometheus-
 filtret i `metrics/hass/configuration.yaml` så förbrukningen
@@ -100,11 +100,11 @@ automationen) skapas sedan från blueprinten i gränssnittet.
 Alternativ A - importera från URL (rekommenderas, helt i GUI:t).
 Repot är publikt, så när filen är pushad till GitHub:
 
-1. Settings → Automations & Scenes → fliken Blueprints.
+1. Settings -> Automations & Scenes -> fliken Blueprints.
 2. Klicka Import blueprint (längst ner till höger).
 3. Klistra in URL:en:
    `https://github.com/smuda/home_assistant/blob/main/blueprints/automation/smuda/tank_full_notify.blueprint.yaml`
-4. Preview → Import. Blueprinten dyker upp i listan.
+4. Preview -> Import. Blueprinten dyker upp i listan.
 
 HA hämtar bara filen och lägger den på rätt plats själv; att den ligger
 under `blueprints/automation/smuda/` i repot spelar ingen roll.
@@ -119,8 +119,8 @@ Klistra in innehållet och spara.
 
 ### 2. Skapa automationen från blueprinten
 
-1. Settings → Automations & Scenes → Create automation.
-2. Use blueprint → välj "Avfuktare full - notis (effekt + valfri
+1. Settings -> Automations & Scenes -> Create automation.
+2. Use blueprint -> välj "Avfuktare full - notis (effekt + valfri
    Tuya)".
 3. Fyll i fälten enligt `inneforrad_otto.yaml` (effektsensor,
    strömbrytare, Tuya tank_full på, notistjänst, påminnelse 6 h).
@@ -156,11 +156,12 @@ finjusteras per enhet:
 
 `fan.avfuktare` och `humidifier.avfuktare` har nu en egen Shelly-plugg
 men ingen tank_full-sensor, så detektionen vilar helt på effekten.
-`uteforrad.yaml` använder `sensor.uteforrad_plug_avfuktare_uteforrad_effekt`
-och `switch.uteforrad_plug_avfuktare_uteforrad`, och samma switch ligger i
-prometheus-filtret. Verifiera trösklarna mot enhetens egen full-cykel -
-kompressoreffekten kan skilja sig från Ottos, så `full_power_max` kan
-behöva justeras.
+`uteforrad.yaml` använder
+`sensor.uteforrad_plug_avfuktare_uteforrad_effekt`
+och `switch.uteforrad_plug_avfuktare_uteforrad`, och samma switch ligger
+i prometheus-filtret. Verifiera trösklarna mot enhetens egen
+full-cykel - kompressoreffekten kan skilja sig från Ottos, så
+`full_power_max` kan behöva justeras.
 
 ## Fler mottagare
 
