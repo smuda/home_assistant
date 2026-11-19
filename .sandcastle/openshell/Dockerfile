@@ -7,9 +7,12 @@
 FROM node:22-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee
 
 # iproute2: OpenShell's supervisor sets up the sandbox network namespace.
+# python3, python3-yaml, python3-jinja2: for the repo's unittest suites,
+# installed from apt so nothing is fetched at run time.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       git ca-certificates bash iproute2 \
+      python3 python3-yaml python3-jinja2 \
  && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g @anthropic-ai/claude-code@2.1.328 \

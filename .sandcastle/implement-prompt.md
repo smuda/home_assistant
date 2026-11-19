@@ -30,11 +30,17 @@ dashboards and blueprints). Read `CLAUDE.md` first and follow it.
 2. Plan: decide the smallest change that does what the issue asks.
 3. Execute: make the change. Match the style of the surrounding
    files.
-4. Verify: this repo has no automated test or lint command. Check by
-   reading instead: every entity id, helper and script you reference
-   must exist in the repo or be created by your change, and no rename
-   may leave a duplicate `..._2` entity behind. Do not add a test
-   framework, a linter or npm scripts.
+4. Verify: run every test suite under `tests/`, one command per
+   directory in `tests/`, from the repo root. They must pass before
+   you commit. The suites are offline and never touch the live
+   instance.
+
+       python3 -m unittest discover -s tests/<suite>
+
+   Then check by reading: every entity id, helper and script you
+   reference must exist in the repo or be created by your change, and
+   no rename may leave a duplicate `..._2` entity behind. Do not add a
+   test framework, a linter or npm scripts.
 5. Commit: make a single commit in conventional commits format
    (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`), subject under
    72 characters. In the body, list the key decisions and end with
@@ -62,7 +68,9 @@ dashboards and blueprints). Read `CLAUDE.md` first and follow it.
 ## When you are blocked
 
 If the issue is unclear, needs a decision, or cannot be done within
-these rules, make no commit. Explain why in your final message.
+these rules, make no commit. Explain why in your final message. A
+test suite that fails in a way you cannot fix within the issue counts
+as blocked: make no commit and explain why.
 
 # Done
 
