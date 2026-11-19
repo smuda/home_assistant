@@ -1,0 +1,29 @@
+# OpenShell sandbox policy for the Sandcastle loop.
+#
+# Network is deny-by-default; each rule pairs endpoints with the binaries
+# allowed to reach them (real paths, not symlinks: /usr/local/bin/claude
+# is a symlink to the native claude.exe below). Add only what a failed run
+# proves is needed. Only public hostnames may ever be allowlisted: a name
+# that resolves to a LAN address may be reachable.
+version: 1
+
+filesystem_policy:
+  include_workdir: true
+  # /bin, /lib, /sbin are symlinks into /usr in this image (bookworm).
+  read_only: [/usr, /lib, /etc, /var/log, /proc, /dev]
+  read_write: [/sandbox, /tmp, /dev/null]
+
+landlock:
+  compatibility: best_effort
+
+process:
+  run_as_user: sandbox
+  run_as_group: sandbox
+
+network_policies:
+  anthropic_api:
+    endpoints:
+      - host: api.anthropic.com
+        port: 443
+    binaries:
+      - path: /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe
