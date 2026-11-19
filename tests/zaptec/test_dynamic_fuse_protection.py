@@ -234,6 +234,13 @@ class TestSustainedOverloadSensor(unittest.TestCase):
         self.assertEqual(self.sensor["delay_on"], "00:01:00")
         self.assertEqual(self.sensor["delay_off"], "01:00:00")
 
+    def test_unique_id_pinned(self):
+        # The entity id binary_sensor.p1_sustained_overload is an
+        # interface: the fuse guard's discount and the overload
+        # notification read it by name. A changed or dropped unique_id
+        # yields a duplicate ..._2 entity and silently breaks both.
+        self.assertEqual(self.sensor["unique_id"], "p1_sustained_overload")
+
 
 if __name__ == "__main__":
     unittest.main()
