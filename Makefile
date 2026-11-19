@@ -6,8 +6,9 @@
 #   add-on. Public key: ~/.ssh/ha_deploy.pub. See DEPLOY.md.
 #
 # Usage:
-#   make check-ssh   # verify the SSH channel is up
-#   make deploy      # rsync blueprint(s) + reload automations
+#   make check-ssh      # verify the SSH channel is up
+#   make deploy         # rsync blueprint(s) + reload automations
+#   make verify-deploy  # after deploy: which automations are loaded
 #
 # Override host/user/key/token on the command line if they differ, e.g.
 #   make deploy HA_USER=hassio
@@ -93,7 +94,7 @@ DASHBOARDS_DEST := $(HA_USER)@$(HA_HOST):$(HA_CONFIG_DIR)/dashboards/
 # lands in the repo.
 CONFIG_LOCAL := config
 
-.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-helpers deploy-dashboards reload-automations reload-templates reload-scripts reload-helpers pull-config check-ssh
+.PHONY: deploy deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-helpers deploy-dashboards reload-automations reload-templates reload-scripts reload-helpers verify-deploy pull-config check-ssh
 
 check-ssh:
 	@$(SSH) $(HA_USER)@$(HA_HOST) 'echo SSH OK on $$(hostname)' \
@@ -196,6 +197,13 @@ reload-helpers:
 	    && echo "$$d helpers reloaded" \
 	    || { echo "$$d reload failed (first deploy? add the include and RESTART HA once)"; exit 1; }; \
 	done
+
+# Read-only: lists which repo automations are loaded in HA and their
+# last_changed, plus template entities. HTTP only (HA_URL/HA_TOKEN_FILE),
+# so it runs without SSH. See DEPLOY.md for why an unchanged
+# automation's last_changed does not move.
+verify-deploy:
+	@python3 -I tools/verify_deploy.py --url $(HA_URL) --token-file $(HA_TOKEN_FILE)
 
 deploy: deploy-blueprint deploy-templates deploy-automations deploy-sensors deploy-notify deploy-scripts deploy-helpers deploy-dashboards reload-automations reload-templates reload-scripts reload-helpers pull-config
 	@echo "Deployed blueprint + templates + automations + sensors + notify + scripts + helpers + dashboards on $(HA_HOST)."
