@@ -99,6 +99,46 @@ charges") is `automation.battery_charge_cap_while_the_car_charges`.
 last_changed also moves on any state change (on/off), so it is a
 hint, not proof, of a reload.
 
+## Deploying from an agent session
+
+- The agent runs plain `make deploy`, and only after the
+  maintainer's explicit go-ahead for that deploy. Approval for one
+  deploy is not approval for the next. The standalone
+  `make reload-*` and `make deploy-*` targets change the live
+  instance too, so they need the same per-deploy go-ahead.
+- "Plain" means a bare command: `make deploy` or `make check-ssh`
+  alone on the line, with no `cd ...;`, `&&`, `;` or pipe around it.
+  The sandbox exclusion and the allow rule match only when the
+  whole command line is that make command. Observed:
+  `cd <repo>; make check-ssh` failed with "ssh: ... Operation not
+  permitted", while plain `make check-ssh` printed "SSH OK".
+- The only permitted argument is `HA_HOST=192.168.60.10`, for
+  example `make deploy HA_HOST=192.168.60.10`, and only as the
+  fallback for when mDNS does not resolve `homeassistant.local`.
+  No other variables (`SSH=`, `RSYNC=`, `HA_URL=`, ...), no flags
+  (`-f`, `-C`) and no extra targets. `make check-ssh` runs alone,
+  never combined with another target. The rules match the command
+  prefix only, so this text is the gate.
+- The committed project settings (`.claude/settings.json`: the
+  `permissions.allow` rules for `make deploy` and `make check-ssh`,
+  and the matching `sandbox.excludedCommands`) run `make deploy*`
+  and `make check-ssh*` outside the sandbox without a prompt. SSH is
+  raw TCP and cannot pass the sandbox's network proxy. Reloads run
+  inside `make deploy`, so they are outside the sandbox too. HTTP
+  calls to the HA REST API, such as `make verify-deploy`, work
+  inside the sandbox.
+- `make verify-deploy` works inside the sandbox only when the
+  command declares the HA host as an allowed network destination:
+  `homeassistant.local:8123`, or `192.168.60.10:8123` with
+  `HA_HOST=192.168.60.10` when mDNS fails. The committed sandbox
+  network allowlist does not include it.
+- After any deploy, whether the agent ran it or the maintainer did,
+  the agent runs `make verify-deploy` and reports which automations
+  are loaded and whether their last_changed moved, instead of
+  assuming it worked. See "Verifying a deploy" above: last_changed
+  is a hint, not proof, and a comment-only edit leaves it
+  untouched.
+
 ## Dashboards (one-time step)
 
 YAML-mode dashboards live under `dashboards/` and deploy to
