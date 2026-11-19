@@ -129,10 +129,12 @@ Each evaluation picks one action, in priority order:
    is `>= emergency_phase` (24 A) and a reduction is needed (safety
    path, bypasses the interval).
 
-Evaluated once a minute, on charge-status changes, and immediately
-when a phase crosses 23 A. It runs only while actually charging
-(`connected_charging`) or while the fuse-pause helper is on (so
-resume can be evaluated) — never while disconnected or merely
+Evaluated once a minute, on charge-status changes, immediately
+when a phase crosses 23 A, or when
+`binary_sensor.p1_sustained_overload` turns on. It runs only while
+actually charging (`connected_charging`) or while the fuse-pause
+helper is on (so
+resume can be evaluated) -- never while disconnected or merely
 `connected_requesting` (see Eco Mode below).
 
 ### Do not disturb Eco Mode
@@ -210,6 +212,43 @@ The `outlier` filter is deliberately not used: it can reject a
 real load — a fail-unsafe blind spot for a fuse guard. The moving
 average has no such failure mode.
 
+### Battery grid charge
+
+The 1KOMMA5 optimiser grid-charges the house battery at about
+9.7 kW (~14 A per phase). The fuse guard ignores that charge while
+the optimiser is in control: `sensor.ems_mode_selection_raw` is 3
+(External EMS) and `sensor.battery_forced_charge_discharge_cmd_raw`
+is 170 (the `Forced charge` command). The battery's per-phase share
+(`sensor.battery_charging_power` / 3 / 230 V, capped at 10 kW) is
+subtracted from the other load, so the car gets the headroom and the
+battery takes what is left. The
+estimate is slightly below the real grid draw, which errs on the safe
+side. Data 2026-10-15 to 11-18 shows the optimiser holds the highest
+phase at about 25.6 A on P1 and cuts the battery within a median 10 s
+(worst 31 s) when load rises. It never sustained an overload; the
+only full-power run over the fuse for minutes was our own Forced-mode
+charge.
+
+Fallback: `binary_sensor.p1_sustained_overload` (templates/) turns on
+when the highest raw P1 phase is at or above 27 A for 60 s, meaning
+the battery is not yielding. The guard then counts the battery as
+household load again, as before, and stays that way for 60 min after
+the overload ends, so the fuse cools down. After that the guard uses
+the discount again. This retry is by design, with no latch: the
+optimiser's battery control runs on the local 1KOMMA5 Heartbeat box
+(a gridX gateway on the LAN, Modbus TCP to the inverter), not in the
+cloud. If the box dies, the External EMS heartbeat (13080 = 12 s)
+lapses, the mode leaves 3 and the discount turns off by itself. A box
+that is alive but not yielding is a faulty or misbehaving component;
+it costs at most one 60-120 s overload pulse per hour.
+`Overload_notify.yaml` sends a phone notification each time the
+sensor turns on. The sensor turning on also triggers the guard at
+once. If the EMS or command sensors are unavailable, or the overload
+sensor is not `off`, there is no discount.
+
+Check the first nights with the car charging under mode 3/170: the
+data never showed the optimiser absorbing a 6 -> 16 A car step.
+
 ## Entities used
 
 | Entity | Role |
@@ -263,38 +302,8 @@ current, so the battery always won. In the optimiser's
 self-consumption windows the battery would also cover the car at
 ~10 kW, spending grid-bought charge on it.
 
-The fuse guard now ignores that charge while the optimiser is in
-control: `sensor.ems_mode_selection_raw` is 3 (External EMS) and
-`sensor.battery_forced_charge_discharge_cmd_raw` is 170 (forced
-charge). The battery's per-phase share (`sensor.battery_charging_power`
-/ 3 / 230 V, capped at 10 kW) is subtracted from the other load, so
-the car gets the headroom and the battery takes what is left. The
-estimate is slightly below the real grid draw, which errs on the safe
-side. Data 2026-10-15 to 11-18 shows the optimiser holds the highest
-phase at about 25.6 A on P1 and cuts the battery within a median 10 s
-(worst 31 s) when load rises. It never sustained an overload; the
-only full-power run over the fuse for minutes was our own Forced-mode
-charge.
-
-Fallback: `binary_sensor.p1_sustained_overload` (templates/) turns on
-when the highest raw P1 phase is at or above 27 A for 60 s, meaning
-the battery is not yielding. The guard then counts the battery as
-household load again, as before, and stays that way for 60 min after
-the overload ends, so the fuse cools down. After that the guard uses
-the discount again. This retry is by design, with no latch: the
-optimiser's battery control runs on the local 1KOMMA5 Heartbeat box
-(a gridX gateway on the LAN, Modbus TCP to the inverter), not in the
-cloud. If the box dies, the External EMS heartbeat (13080 = 12 s)
-lapses, the mode leaves 3 and the discount turns off by itself. A box
-that is alive but not yielding is a faulty or misbehaving component;
-it costs at most one 60-120 s overload pulse per hour.
-`Overload_notify.yaml` sends a phone notification each time the
-sensor turns on. The sensor turning on also triggers the guard at
-once. If the EMS or command sensors are unavailable, or the overload
-sensor is not `off`, there is no discount.
-
-Check the first nights with the car charging under mode 3/170: the
-data never showed the optimiser absorbing a 6 -> 16 A car step.
+The fuse headroom part is now the fuse guard's job; see
+[Battery grid charge](#battery-grid-charge).
 
 `Battery_hold.yaml` now has one job: stop the battery discharging
 into the car in the optimiser's self-consumption windows
@@ -318,8 +327,9 @@ too: writing Self-consumption over a running External EMS knocks the
 optimiser out of control for no gain.
 
 Seen 2026-11-18 (logbook): when the optimiser wants to grid-charge it
-wrote External EMS + Forced charge within about 10 s of every hold
-write, so the hold lost every round and only churned the registers.
+wrote External EMS + the `Forced charge` command within about 10 s
+of every hold write, so the hold lost every round and only churned
+the registers.
 In self-consumption windows the hold won and held (01:49-02:45 UTC).
 The optimiser also takes control back from Forced mode by writing
 External EMS itself when its plan says so (02:45, 04:00), so a
@@ -328,7 +338,7 @@ it. Capping the power limits (33046/33047) did not work either: the
 optimiser writes them itself and rewrote them within ~10 s (seen
 2026-10-25, #10/#11).
 
-The order matters: the command select can sit at Forced charge, and
+The order matters: the command select can sit at `Forced charge`, and
 Forced mode first would start a grid charge. A Stop write can be
 skipped (unavailable entity) or refused without an error, hence the
 gate. It reads the raw sensor because the select maps unknown values
@@ -349,9 +359,10 @@ reads `connected_charging`. Releasing at the resume would put the
 battery back on top of the restarting car while nothing watches the
 fuse.
 
-- The battery is idle during a fuse pause too. That loses the fuse
-  support the battery covering the house would give; decided and
-  accepted.
+- The battery is idle during a fuse pause too, unless the optimiser
+  is in External EMS, where the hold writes nothing. That loses the
+  fuse support the battery covering the house would give; decided
+  and accepted.
 - Daytime PV surplus is exported while the battery is held; decided.
 - There is no watchdog if HA dies mid-hold: the battery stays idle,
   as long as nothing else rewrites the command register, until HA is
@@ -421,6 +432,10 @@ Edit the `variables` block in `Dynamic_fuse_protection.yaml`:
   treated as dead and the fail-safe kicks in. 60.
 - `failsafe_other` — assumed non-car load per phase (amps) when P1
   is dead; 18 floors the car to 6 A without forcing a stop. 18.
+- `batt_max_w` -- SH10RT charge rating in watts, caps a bad battery
+  power reading. 10000.
+- `nominal_v` -- volts used to turn battery watts into per-phase
+  amps. 230.
 - `ev_min` / `ev_max` — 6 and 16 (do not exceed the installer cap).
 
 The moving-average `window_size` for the noise filter lives in

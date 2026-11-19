@@ -1,20 +1,9 @@
-# P1 sustained overload
-# =====================
-# The Zaptec fuse guard (automations/zaptec/Dynamic_fuse_protection.yaml)
-# ignores the 1KOMMA5 optimiser's battery grid charge while the
-# optimiser is in control, on the premise that the battery yields to
-# the car. This sensor is the guard's check that it actually did.
-#
-# The optimiser settles at about 25.6 A on the highest phase and clears
-# a spike within ~30 s, so 27 A held for 60 s means it is not yielding.
-# delay_off keeps the guard on full battery accounting for 60 min
-# afterwards, so the fuse cools down before the discount is tried
-# again. The guard keeps retrying after every quiet period by design
-# (no latch); Overload_notify.yaml notifies each time this turns on.
+# P1 sustained overload: the Zaptec fuse guard's check that the
+# optimiser's battery yielded to the car. See
+# p1_sustained_overload.md.
 #
 # Reads the RAW P1 phases. No availability template: an unavailable
-# P1 reads 0 here, and the guard's own P1 liveness check
-# (failsafe_other) covers P1 loss.
+# P1 reads 0 here, and the guard's own P1 liveness check covers it.
 #
 # Part of the merged `template:` list (see README.md for the
 # file-format rules).

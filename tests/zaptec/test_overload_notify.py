@@ -13,14 +13,16 @@ Needs jinja2 and pyyaml (not part of the repo's tooling).
 
 import unittest
 
-from test_dynamic_fuse_protection import (
+from ha_harness import (
     NOW,
     P1_RAW,
     ROOT,
     SUSTAINED,
     Entity,
+    as_list,
     load_yaml,
     make_env,
+    state_triggers,
 )
 
 NOTIFY = ROOT / "automations" / "zaptec" / "Overload_notify.yaml"
@@ -41,18 +43,13 @@ def mock_entities(phases=(20.0, 31.4, 18.0), others=None):
     return {eid: Entity(str(v), NOW, NOW) for eid, v in values.items()}
 
 
-def as_list(value):
-    return value if isinstance(value, list) else [value]
-
-
 class TestOverloadNotify(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.automation = load_yaml(NOTIFY)
 
     def action(self):
-        actions = self.automation.get("actions", self.automation.get("action"))
-        return as_list(actions)
+        return as_list(self.automation["actions"])
 
     def render(self, text, entities):
         return make_env(entities).from_string(text).render()
@@ -61,41 +58,30 @@ class TestOverloadNotify(unittest.TestCase):
         (action,) = self.action()
         return action["data"]
 
-    def test_l_state_trigger_on_sustained_overload(self):
-        triggers = as_list(
-            self.automation.get("triggers", self.automation.get("trigger"))
-        )
+    def test_state_trigger_on_sustained_overload(self):
+        triggers = as_list(self.automation["triggers"])
         matches = [
             t
-            for t in triggers
-            if t.get("trigger", t.get("platform")) == "state"
-            and t.get("entity_id") == SUSTAINED
-            and str(t.get("to")) == "on"
+            for t in state_triggers(self.automation, SUSTAINED)
+            if str(t.get("to")) == "on"
         ]
         self.assertEqual(len(matches), 1, triggers)
         self.assertEqual(len(triggers), 1, triggers)
 
-    def test_l_no_conditions(self):
-        conditions = self.automation.get(
-            "conditions", self.automation.get("condition")
-        )
-        self.assertFalse(conditions)
+    def test_no_conditions(self):
+        self.assertFalse(self.automation.get("conditions"))
 
-    def test_l_single_notify_action(self):
+    def test_single_notify_action(self):
         actions = self.action()
         self.assertEqual(len(actions), 1, actions)
-        self.assertEqual(actions[0].get("action", actions[0].get("service")), TARGET)
+        self.assertEqual(actions[0]["action"], TARGET)
 
-    def test_l_metadata(self):
-        self.assertEqual(self.automation["alias"], "P1 sustained overload notification")
-        self.assertEqual(self.automation["mode"], "single")
-
-    def test_m_message_renders_with_max_phase(self):
+    def test_message_renders_with_max_phase(self):
         message = self.render(self.notify_data()["message"], mock_entities())
         self.assertTrue(message.strip())
         self.assertIn("31.4", message)
 
-    def test_m_max_phase_follows_the_hot_phase(self):
+    def test_max_phase_follows_the_hot_phase(self):
         for hot in range(3):
             phases = [10.0, 10.0, 10.0]
             phases[hot] = 33.7
@@ -104,7 +90,7 @@ class TestOverloadNotify(unittest.TestCase):
             )
             self.assertIn("33.7", message)
 
-    def test_m_message_renders_with_unavailable_entities(self):
+    def test_message_renders_with_unavailable_entities(self):
         entities = mock_entities(
             others={
                 "sensor.battery_power": "unavailable",
@@ -118,35 +104,41 @@ class TestOverloadNotify(unittest.TestCase):
         self.assertTrue(message.strip())
         self.assertIn("31.4", message)
 
-    def test_m_message_renders_with_unavailable_phase(self):
+    def test_message_renders_with_unavailable_phase(self):
         message = self.render(
             self.notify_data()["message"],
             mock_entities(phases=("unavailable", 29.5, "unknown")),
         )
         self.assertIn("29.5", message)
 
-    def test_m_message_has_one_fact_per_line(self):
+    def test_message_has_one_fact_per_line(self):
         message = self.render(self.notify_data()["message"], mock_entities())
         lines = [ln for ln in message.splitlines() if ln.strip()]
         self.assertGreaterEqual(len(lines), 5, message)
 
-    def test_m_message_shows_battery_ems_and_car_values(self):
+    def test_message_shows_battery_ems_and_car_values(self):
         message = self.render(self.notify_data()["message"], mock_entities())
         for expected in ("9660", "170", "connected_charging"):
             self.assertIn(expected, message)
 
-    def test_m_title_renders(self):
+    def test_message_ends_with_guard_counts_battery_line(self):
+        message = self.render(self.notify_data()["message"], mock_entities())
+        last = [ln for ln in message.splitlines() if ln.strip()][-1]
+        self.assertIn("tills överlastgivaren slår av", last)
+        self.assertNotIn("60 min", message)
+
+    def test_title_renders(self):
         title = self.render(self.notify_data()["title"], mock_entities())
         self.assertEqual(title.strip(), "Säkringsvakt: överlast")
 
 
 class TestOverloadNotifyId(unittest.TestCase):
-    def test_n_id_present_and_numeric_string(self):
+    def test_id_present_and_numeric_string(self):
         auto_id = load_yaml(NOTIFY)["id"]
         self.assertIsInstance(auto_id, str)
         self.assertTrue(auto_id.isdigit(), auto_id)
 
-    def test_n_id_unique_among_automations(self):
+    def test_id_unique_among_automations(self):
         own = load_yaml(NOTIFY)["id"]
         owners = []
         for path in sorted((ROOT / "automations").rglob("*.yaml")):

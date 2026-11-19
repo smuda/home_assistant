@@ -17,15 +17,18 @@ Needs jinja2 and pyyaml (not part of the repo's tooling).
 import datetime as dt
 import unittest
 
-from test_dynamic_fuse_protection import (
+from ha_harness import (
     CMD,
     EMS,
     NOW,
     PAUSED,
     ROOT,
     Entity,
+    as_list,
     load_yaml,
     make_env,
+    render_variables,
+    state_triggers,
 )
 
 HOLD = ROOT / "automations" / "zaptec" / "Battery_hold.yaml"
@@ -33,10 +36,6 @@ CAR = "sensor.zag064494_laddstatus"
 STOP = ("select.select_option", "select.battery_forced_charge_discharge", "Stop (default)")
 FORCED = ("select.select_option", "select.ems_mode", "Forced mode")
 SELF = ("select.select_option", "select.ems_mode", "Self-consumption mode (default)")
-
-
-def as_list(value):
-    return value if isinstance(value, list) else [value]
 
 
 class Runner:
@@ -59,11 +58,11 @@ class Runner:
         return make_env(self.entities).from_string(text).render(**self.scope)
 
     def run(self):
-        self.scope = {}
-        for name, value in self.automation.get("variables", {}).items():
-            if isinstance(value, str):
-                value = self.template(value)
-            self.scope[name] = value
+        self.scope = render_variables(
+            make_env(self.entities),
+            self.automation.get("variables", {}),
+            {},
+        )
         self.walk(self.automation["actions"])
         return self.calls
 
@@ -132,18 +131,18 @@ class TestBatteryHold(unittest.TestCase):
             out.setdefault(i, []).append(call)
         return out
 
-    def test_a_hold_in_self_consumption_window_writes_each_iteration(self):
+    def test_hold_in_self_consumption_window_writes_each_iteration(self):
         calls = self.run_case(entities(ems="0"), on_call=stop_sets_204)
         self.assertEqual(
             self.by_iteration(calls),
             {0: [STOP, FORCED], 1: [STOP, FORCED], 2: [STOP, FORCED]},
         )
 
-    def test_b_optimiser_in_control_blocks_hold(self):
+    def test_optimiser_in_control_blocks_hold(self):
         calls = self.run_case(entities(ems="3", cmd="204"))
         self.assertEqual(calls, [])
 
-    def test_c_takeover_mid_charge_stops_further_writes(self):
+    def test_takeover_mid_charge_stops_further_writes(self):
         def switch(i, ents):
             ents[EMS].state = "0" if i == 0 else "3"
 
@@ -152,17 +151,17 @@ class TestBatteryHold(unittest.TestCase):
         )
         self.assertEqual(self.by_iteration(calls), {0: [STOP, FORCED]})
 
-    def test_d_release_skipped_while_optimiser_in_control(self):
+    def test_release_skipped_while_optimiser_in_control(self):
         calls = self.run_case(entities(car="disconnected", ems="3"))
         self.assertEqual(calls, [])
 
-    def test_e_release_writes_self_consumption(self):
+    def test_release_writes_self_consumption(self):
         calls = self.run_case(entities(car="disconnected", ems="2"))
         self.assertEqual(
             self.by_iteration(calls), {0: [SELF], 1: [SELF], 2: [SELF]}
         )
 
-    def test_f_unavailable_ems_sensor_still_holds(self):
+    def test_unavailable_ems_sensor_still_holds(self):
         calls = self.run_case(
             entities(ems="unavailable", cmd="204"), on_call=stop_sets_204
         )
@@ -171,24 +170,20 @@ class TestBatteryHold(unittest.TestCase):
             {0: [STOP, FORCED], 1: [STOP, FORCED], 2: [STOP, FORCED]},
         )
 
-    def test_g_refused_stop_does_not_write_forced_mode(self):
+    def test_refused_stop_does_not_write_forced_mode(self):
         calls = self.run_case(entities(ems="0", cmd="170"))
         self.assertEqual(
             self.by_iteration(calls), {0: [STOP], 1: [STOP], 2: [STOP]}
         )
         self.assertNotIn(FORCED, [c for _, c in calls])
 
-    def test_h_trigger_on_optimiser_window_end(self):
-        triggers = as_list(self.automation["triggers"])
+    def test_trigger_on_optimiser_window_end(self):
         matches = [
             t
-            for t in triggers
-            if t.get("trigger") == "state"
-            and t.get("entity_id") == EMS
-            and str(t.get("to")) == "0"
-            and t.get("for") == "00:00:30"
+            for t in state_triggers(self.automation, EMS)
+            if str(t.get("to")) == "0" and t.get("for") == "00:00:30"
         ]
-        self.assertEqual(len(matches), 1, triggers)
+        self.assertEqual(len(matches), 1, self.automation["triggers"])
 
 
 if __name__ == "__main__":

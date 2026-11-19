@@ -1,9 +1,6 @@
 # Notifies when the fuse guard's check sees a sustained P1 overload,
 # i.e. the optimiser battery did not yield to the car. Fires whether
-# or not the car is charging, so a non-yielding battery is visible.
-# For 60 min after the overload the fuse guard counts the battery as
-# household load; it then retries the discount by design (no latch).
-# See README.md and templates/p1_sustained_overload.md.
+# or not the car is charging. See README.md.
 id: "1795046400000"
 alias: P1 sustained overload notification
 description: >-
@@ -28,7 +25,7 @@ actions:
         EMS-läge (rå): {{ states('sensor.ems_mode_selection_raw') }}
         Tvingat kommando (rå): {{ states('sensor.battery_forced_charge_discharge_cmd_raw') }}
         Bil: {{ states('sensor.zag064494_laddstatus') }}, max {{ states('number.zag064494_max_laddstrom') }} A
-        Säkringsvakten räknar batteriet som hushållslast tills överlasten varit borta i 60 min.
+        Säkringsvakten räknar batteriet som hushållslast tills överlastgivaren slår av.
       data:
         push:
           interruption-level: time-sensitive

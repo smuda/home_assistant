@@ -5,14 +5,14 @@
 # Never fights the optimiser's External EMS (raw 3), which it uses to
 # grid-charge or peak-shave: neither hold nor release writes while
 # the raw mode is 3. Seen 2026-11-18: the optimiser rewrote External
-# EMS + Forced charge within ~10 s of every hold write, so the hold
+# EMS + command raw 170 within ~10 s of every hold write, so the hold
 # lost every round and only churned the registers. It also takes
 # control back from our Forced mode by itself when its plan says so.
 # Fuse headroom for its grid charge is the fuse guard's job now (it
 # ignores that charge while the optimiser yields), not this one's.
 # Capping the power limits (33046/33047) did not work either: the
 # optimiser writes them itself (seen 2026-10-25, #10/#11).
-# Order matters: the command select can sit at Forced charge, and
+# Order matters: the command select can sit at `Forced charge`, and
 # Forced mode first would start a grid charge.
 # The pause helper counts as held: a fuse-stop shows
 # connected_finished, same as a full car, and releasing then would
