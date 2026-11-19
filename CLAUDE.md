@@ -3,6 +3,10 @@
 Project-specific instructions for this Home Assistant repo. These add
 to the user's global CLAUDE.md, they do not replace it.
 
+## Coding standards
+
+Apply `CODING_STANDARDS.md` when writing or reviewing a change.
+
 ## Markdown files
 
 - Avoid non-ASCII characters. Use ASCII equivalents for punctuation
@@ -36,6 +40,11 @@ CLI. See `docs/agents/issue-tracker.md`.
 
 The five default triage labels, each label string equal to its
 canonical role name. See `docs/agents/triage-labels.md`.
+
+An issue whose fix touches a path the Sandcastle loop refuses to push
+(`CLAUDE.md`, `AGENTS.md`, `Makefile`, `package.json`, `.github/`,
+`.sandcastle/`, `.claude/`; full list in `.sandcastle/guards.mts`)
+gets `ready-for-human`, not `ready-for-agent`.
 
 ### Domain docs
 
