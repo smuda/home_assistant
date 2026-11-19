@@ -13,3 +13,6 @@ ip_bans.yaml
 
 # Node deps for the Sandcastle agent loop.
 node_modules/
+
+# Sandcastle agent tokens; also ignored by .sandcastle/.gitignore.
+.sandcastle/.env
