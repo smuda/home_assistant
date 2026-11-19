@@ -45,8 +45,9 @@ The add-on already includes `rsync`. If a future update drops it, add
 ## Deploying
 
 ```sh
-make check-ssh   # verify the channel is up
-make deploy      # rsync blueprint(s) + reload automations
+make check-ssh      # verify the channel is up
+make deploy         # rsync blueprint(s) + reload automations
+make verify-deploy  # after deploy: which automations are loaded
 ```
 
 `make deploy` ships:
@@ -66,6 +67,37 @@ It then pulls `configuration.yaml` back from the live host into
 `config/configuration.yaml` as a read-only mirror (see below).
 
 Add more files by extending the Makefile.
+
+## Verifying a deploy
+
+```sh
+make verify-deploy   # after make deploy
+```
+
+It prints one line per automation id in the repo: id, entity id,
+state and last_changed, then the template-integration entities
+(which include GUI-created template helpers). A repo automation id
+that is not loaded in HA prints as MISSING. A repo automation that
+is MISSING, `unavailable`, or whose file has no top-level `id:`
+(NO-ID) makes the command exit non-zero. That is the silent failure
+it guards against.
+
+It uses `POST /api/template` because
+`GET /api/config/automation/config/<id>` 404s for `!include_dir_list`
+automations and `GET /api/error_log` 404s on this HA version.
+
+Comment-only reload gotcha: HA reloads only automations and template
+entities whose parsed config changed. A comment-only (or
+whitespace-only) edit leaves last_changed untouched. That is not a
+failed deploy. Example: `Battery_hold.yaml` on 2026-11-19.
+
+Entity ids are fixed at first registration, not derived from the
+current alias, so the check matches on the automation's `id:`.
+Example: id `1792555200000` (alias "Battery hold while the car
+charges") is `automation.battery_charge_cap_while_the_car_charges`.
+
+last_changed also moves on any state change (on/off), so it is a
+hint, not proof, of a reload.
 
 ## Dashboards (one-time step)
 
