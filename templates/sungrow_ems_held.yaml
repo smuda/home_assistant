@@ -107,6 +107,10 @@
 # Battery grace record: battery power and time when a held value left
 # 3/170 while the guard discounted the battery. Records only; the
 # guard owns the grace rules. See sungrow_ems_held.md.
+# No availability template on purpose: the record is always valid. A
+# battery power that is unavailable at the change is recorded as 0,
+# which gives no discount (fail safe), and the guard checks the held
+# values' availability itself.
 - trigger:
     - trigger: state
       entity_id:
