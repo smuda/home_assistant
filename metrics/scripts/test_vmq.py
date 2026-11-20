@@ -249,6 +249,22 @@ class ReshapeTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             vmq.series({"status": "error", "error": "bad query"})
 
+    def test_http_error_body_is_returned(self):
+        body = io.BytesIO(b'{"status":"error","error":"too many points"}')
+        error = urllib.error.HTTPError(
+            "http://vm:8428/", 422, "Unprocessable Entity", {}, body)
+        with mock.patch.object(vmq.OPENER, "open", side_effect=error):
+            response = vmq.fetch("http://vm:8428/x", env={})
+        with self.assertRaisesRegex(RuntimeError, "too many points"):
+            vmq.series(response)
+
+    def test_http_error_without_json_body_raises(self):
+        error = urllib.error.HTTPError(
+            "http://vm:8428/", 502, "Bad Gateway", {}, io.BytesIO(b"<html>"))
+        with mock.patch.object(vmq.OPENER, "open", side_effect=error), \
+                self.assertRaises(urllib.error.HTTPError):
+            vmq.fetch("http://vm:8428/x", env={})
+
 
 if __name__ == "__main__":
     unittest.main()
