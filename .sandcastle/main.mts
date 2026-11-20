@@ -76,8 +76,8 @@ import {
 // ---------------------------------------------------------------------------
 
 // Each cycle works on one issue. Raise this to process more issues per run.
-const MAX_ITERATIONS = 1;
-const MODEL = "claude-opus-4-8";
+const MAX_ITERATIONS = 2;
+const MODEL = "claude-opus-5-5";
 
 // ---------------------------------------------------------------------------
 // Host helpers
