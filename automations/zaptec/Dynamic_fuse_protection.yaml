@@ -15,7 +15,8 @@
 # limits the current once a charge is under way.
 # Ignores the house battery's grid charge while the optimiser yields
 # to the fuse, and counts it as load again on a sustained P1
-# overload.
+# overload. Reads the EMS mode and command from the held copies in
+# templates/sungrow_ems_held.yaml.
 # Requires helper: input_boolean.zaptec_fuse_paused. See README.md.
 id: "1781429136630"
 alias: Zaptec dynamic fuse protection (charge current)
@@ -76,6 +77,9 @@ variables:
   failsafe_other: 18  # assumed other-phase load (A) when P1 is dead
   batt_max_w: 10000  # SH10RT battery charge rating, caps a bad reading
   nominal_v: 230  # battery W -> per-phase A (SH10RT charges all three phases evenly)
+  grace_min: 10  # min seconds the battery grace holds the discount
+  grace_power_w: 500  # after grace_min, the grace ends below this battery power
+  grace_max: 30  # max seconds of battery grace
   current_max: "{{ states('number.zag064494_max_laddstrom')|int(0) }}"
   # Charger current: raw, never filtered. The Zaptec sensor updates
   # only every few minutes (cloud), and a `filter` sensor recomputes
@@ -101,21 +105,39 @@ variables:
   v1: "{{ states('sensor.p1_fas_1_filtrerad') if states('sensor.p1_fas_1_filtrerad') not in ['unknown','unavailable'] else states('sensor.p1_meter_strom_fas_1') }}"
   v2: "{{ states('sensor.p1_fas_2_filtrerad') if states('sensor.p1_fas_2_filtrerad') not in ['unknown','unavailable'] else states('sensor.p1_meter_strom_fas_2') }}"
   v3: "{{ states('sensor.p1_fas_3_filtrerad') if states('sensor.p1_fas_3_filtrerad') not in ['unknown','unavailable'] else states('sensor.p1_meter_strom_fas_3') }}"
-  # Optimiser grid-charging (External EMS, command raw 170). The
-  # sustained-overload sensor checks that it yields;
-  # is_state(..., 'off') gives no discount when that sensor is
-  # unavailable, unknown or missing (fail safe). Relies on External
-  # EMS stopping on a lapsed heartbeat (13080 = 12 s): if the
+  # Optimiser grid-charging (External EMS, command raw 170), read from
+  # the held copies (templates/sungrow_ems_held.yaml) that ride
+  # through failed Modbus reads. The sustained-overload sensor checks
+  # that it yields; is_state(..., 'off') gives no discount when that
+  # sensor is unavailable, unknown or missing (fail safe). Relies on
+  # External EMS stopping on a lapsed heartbeat (13080 = 12 s): if the
   # Heartbeat box dies, the mode leaves 3 and the discount ends. 230 V
   # nominal and AC-side losses put the estimate below the real grid
   # draw, the safe side.
+  overload_off: "{{ is_state('binary_sensor.p1_sustained_overload', 'off') }}"
   optimiser_charging: >-
-    {{ states('sensor.ems_mode_selection_raw') == '3'
-       and states('sensor.battery_forced_charge_discharge_cmd_raw') == '170'
-       and is_state('binary_sensor.p1_sustained_overload', 'off') }}
-  batt_a: >-
-    {{ ([ [ states('sensor.battery_charging_power')|float(0), 0 ]|max,
-          batt_max_w ]|min / 3 / nominal_v) if optimiser_charging else 0 }}
+    {{ is_state('sensor.ems_mode_selection_raw_held', '3')
+       and is_state('sensor.battery_forced_charge_discharge_cmd_raw_held', '170')
+       and overload_off }}
+  # Both held values are real (the hold has not expired).
+  held_ok: >-
+    {{ states('sensor.ems_mode_selection_raw_held') not in ['unavailable', 'unknown']
+       and states('sensor.battery_forced_charge_discharge_cmd_raw_held')
+           not in ['unavailable', 'unknown'] }}
+  # Battery grace: the values just left 3/170 while P1 still carries
+  # the battery's charge. Keeps the discount at the power recorded at
+  # the change. See "Battery grid charge" in README.md.
+  grace_w: "{{ states('sensor.fuse_guard_battery_grace')|float(0) }}"
+  grace_age: >-
+    {{ now().timestamp()
+       - state_attr('sensor.fuse_guard_battery_grace', 'started')|float(0) }}
+  batt_live_w: "{{ states('sensor.battery_charging_power')|float(0) }}"
+  in_grace: >-
+    {{ not optimiser_charging and overload_off and held_ok
+       and 0 <= grace_age < grace_max
+       and (grace_age < grace_min or batt_live_w >= grace_power_w) }}
+  batt_w: "{{ grace_w if in_grace else batt_live_w if optimiser_charging else 0 }}"
+  batt_a: "{{ [ [ batt_w, 0 ]|max, batt_max_w ]|min / 3 / nominal_v }}"
   # Other (non-car, non-yielding-battery) load per phase. When the P1
   # feed is dead, fail SAFE to failsafe_other so the car floors to
   # 6 A -- never read a dropout as zero load, which would let it allow

@@ -19,6 +19,9 @@ NOW = dt.datetime(2026, 11, 18, 12, 0, 0, tzinfo=dt.timezone.utc)
 
 EMS = "sensor.ems_mode_selection_raw"
 CMD = "sensor.battery_forced_charge_discharge_cmd_raw"
+EMS_HELD = "sensor.ems_mode_selection_raw_held"
+CMD_HELD = "sensor.battery_forced_charge_discharge_cmd_raw_held"
+GRACE = "sensor.fuse_guard_battery_grace"
 SUSTAINED = "binary_sensor.p1_sustained_overload"
 PAUSED = "input_boolean.zaptec_fuse_paused"
 P1_RAW = [f"sensor.p1_meter_strom_fas_{n}" for n in (1, 2, 3)]
@@ -60,13 +63,13 @@ class States:
         return Domain(domain, self._entities)
 
 
-def make_env(entities):
+def make_env(entities, now=NOW):
     env = NativeEnvironment(undefined=StrictUndefined)
     env.globals["states"] = States(entities)
     env.globals["is_state"] = lambda eid, value: (
         eid in entities and entities[eid].state == value
     )
-    env.globals["now"] = lambda: NOW
+    env.globals["now"] = lambda: now
     env.globals["state_attr"] = lambda eid, attr: (
         entities[eid].attributes.get(attr) if eid in entities else None
     )

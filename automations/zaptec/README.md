@@ -252,8 +252,39 @@ that is alive but not yielding is a faulty or misbehaving component;
 it costs at most one 60-120 s overload pulse per hour.
 `Overload_notify.yaml` sends a phone notification each time the
 sensor turns on. The sensor turning on also triggers the guard at
-once. If the EMS or command sensors are unavailable, or the overload
-sensor is not `off`, there is no discount.
+once. If the overload sensor is not `off` there is no discount.
+
+The guard reads the EMS mode and command from held copies
+(`sensor.ems_mode_selection_raw_held`,
+`sensor.battery_forced_charge_discharge_cmd_raw_held`, see
+[the held values](../../templates/sungrow_ems_held.md)). The
+inverter refuses about 8% of holding-register reads, so each raw
+sensor goes `unavailable` for a poll or two about 40-50 times an
+hour. Each dropout ended the discount while P1 still carried the
+battery's ~14 A per phase, and all four fuse-stops on the night of
+2026-11-20 came from that (#44). A held copy keeps the last good
+value for 2 failed polls, logs a warning on the second, and goes
+`unavailable` on the third, which ends the discount as before.
+
+Battery grace. The values also really change for short periods
+(command 170 -> 204 -> 170, EMS mode 3 -> 0 -> 3), and when the
+optimiser really ends a grid charge, P1 carries the battery for up
+to about 20 s while the inverter ramps down. So when a held value
+leaves 3/170 while the discount applies, the guard keeps the
+discount, computed from the battery power recorded at the change
+(`sensor.fuse_guard_battery_grace`), not the live one: P1 lags the
+battery reading by about 5 s. The grace lasts at least `grace_min`
+(10 s). After that it ends once the live battery power is below
+`grace_power_w` (500 W), and at `grace_max` (30 s) regardless. It
+ends at once when the values return to 3/170 (the live-power
+discount resumes), when the overload sensor is not `off`, or when a
+held value is `unavailable`. A failed read never starts a grace.
+
+During the grace the guard deliberately undercounts the load, and
+`ptot_max` (so the 24 A cut) excludes the discounted battery too, so
+`grace_max` is the only bound on that window. The grace is checked
+on each guard run, so a battery that drops below 500 W and climbs
+again before 30 s gets the discount back; the cap still holds.
 
 Check the first nights with the car charging under mode 3/170: the
 data never showed the optimiser absorbing a 6 -> 16 A car step.
