@@ -20,6 +20,7 @@ import csv
 import json
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -106,8 +107,20 @@ OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 def fetch(url, env=None):
     req = build_request(url, os.environ if env is None else env)
-    with OPENER.open(req, timeout=60) as resp:
-        return json.load(resp)
+    try:
+        with OPENER.open(req, timeout=60) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as e:
+        # VictoriaMetrics answers a rejected query (for example too
+        # many points per series) with 4xx and a JSON error body.
+        # Return it so series() reports the reason, not just the code.
+        try:
+            body = json.load(e)
+        except ValueError:
+            raise e
+        if not isinstance(body, dict) or "status" not in body:
+            raise
+        return body
 
 
 def series(response):
