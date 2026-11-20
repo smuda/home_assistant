@@ -1,0 +1,156 @@
+# Sungrow EMS mode and command, held over failed Modbus reads, plus
+# the fuse guard's battery grace record. Read by the Zaptec fuse
+# guard instead of the raw sensors. See sungrow_ems_held.md.
+#
+# Raw failed -> keep the last good value. The `for:` timers sit
+# halfway between the 10 s polls:
+# - warn (15 s): the second poll failed too; log once, keep holding.
+# - expire (25 s): the third poll failed; go unavailable.
+#
+# Part of the merged `template:` list (see README.md for the
+# file-format rules).
+
+- trigger:
+    - trigger: state
+      entity_id: sensor.ems_mode_selection_raw
+      to: ~
+      id: change
+    - trigger: state
+      entity_id: sensor.ems_mode_selection_raw
+      to: [unavailable, unknown]
+      for: "00:00:15"
+      id: warn
+    - trigger: state
+      entity_id: sensor.ems_mode_selection_raw
+      to: [unavailable, unknown]
+      for: "00:00:25"
+      id: expire
+    # A restored state is stale; show unavailable until a good read.
+    - trigger: homeassistant
+      event: start
+      id: start
+    - trigger: event
+      event_type: event_template_reloaded
+      id: start
+  action:
+    - if:
+        - condition: trigger
+          id: warn
+      then:
+        - action: system_log.write
+          data:
+            level: warning
+            logger: fuse_guard.hold
+            message: >-
+              sensor.ems_mode_selection_raw failed two polls in a
+              row; the fuse guard holds its last good value for one
+              more poll.
+  sensor:
+    - name: "EMS mode selection raw held"
+      unique_id: ems_mode_selection_raw_held
+      icon: mdi:battery-sync
+      state: >
+        {% set raw = states('sensor.ems_mode_selection_raw') %}
+        {{ raw if raw not in ['unavailable', 'unknown'] else this.state }}
+      availability: >
+        {{ states('sensor.ems_mode_selection_raw') not in ['unavailable', 'unknown']
+           or (trigger.id in ['change', 'warn']
+               and this.state not in ['unavailable', 'unknown']) }}
+
+- trigger:
+    - trigger: state
+      entity_id: sensor.battery_forced_charge_discharge_cmd_raw
+      to: ~
+      id: change
+    - trigger: state
+      entity_id: sensor.battery_forced_charge_discharge_cmd_raw
+      to: [unavailable, unknown]
+      for: "00:00:15"
+      id: warn
+    - trigger: state
+      entity_id: sensor.battery_forced_charge_discharge_cmd_raw
+      to: [unavailable, unknown]
+      for: "00:00:25"
+      id: expire
+    # A restored state is stale; show unavailable until a good read.
+    - trigger: homeassistant
+      event: start
+      id: start
+    - trigger: event
+      event_type: event_template_reloaded
+      id: start
+  action:
+    - if:
+        - condition: trigger
+          id: warn
+      then:
+        - action: system_log.write
+          data:
+            level: warning
+            logger: fuse_guard.hold
+            message: >-
+              sensor.battery_forced_charge_discharge_cmd_raw failed
+              two polls in a row; the fuse guard holds its last good
+              value for one more poll.
+  sensor:
+    - name: "Battery forced charge discharge cmd raw held"
+      unique_id: battery_forced_charge_discharge_cmd_raw_held
+      icon: mdi:battery-sync
+      state: >
+        {% set raw = states('sensor.battery_forced_charge_discharge_cmd_raw') %}
+        {{ raw if raw not in ['unavailable', 'unknown'] else this.state }}
+      availability: >
+        {{ states('sensor.battery_forced_charge_discharge_cmd_raw') not in ['unavailable', 'unknown']
+           or (trigger.id in ['change', 'warn']
+               and this.state not in ['unavailable', 'unknown']) }}
+
+# Battery grace record: battery power and time when a held value left
+# 3/170 while the guard discounted the battery. Records only; the
+# guard owns the grace rules. See sungrow_ems_held.md.
+- trigger:
+    - trigger: state
+      entity_id:
+        - sensor.ems_mode_selection_raw_held
+        - sensor.battery_forced_charge_discharge_cmd_raw_held
+      to: ~
+  # Booleans only: HA parses variables to native types, so a "3"
+  # kept here would become the number 3.
+  variables:
+    ems_id: sensor.ems_mode_selection_raw_held
+    cmd_id: sensor.battery_forced_charge_discharge_cmd_raw_held
+    failed: >-
+      {{ states(ems_id) in ['unavailable', 'unknown']
+         or states(cmd_id) in ['unavailable', 'unknown'] }}
+    is_charge: "{{ is_state(ems_id, '3') and is_state(cmd_id, '170') }}"
+    was_ems: >-
+      {{ (trigger.from_state.state
+          if trigger.from_state and trigger.entity_id == ems_id
+          else states(ems_id)) == '3' }}
+    was_cmd: >-
+      {{ (trigger.from_state.state
+          if trigger.from_state and trigger.entity_id == cmd_id
+          else states(cmd_id)) == '170' }}
+    grace: >-
+      {%- if failed or is_charge -%} clear
+      {%- elif was_ems and was_cmd -%}
+        {{ 'start' if is_state('binary_sensor.p1_sustained_overload', 'off') else 'clear' }}
+      {%- else -%} keep {%- endif -%}
+  sensor:
+    - name: "Fuse guard battery grace"
+      unique_id: fuse_guard_battery_grace
+      icon: mdi:timer-sand
+      unit_of_measurement: W
+      device_class: power
+      state: >-
+        {%- if grace == 'start' -%}
+          {{ states('sensor.battery_charging_power')|float(0) }}
+        {%- elif grace == 'keep' -%}
+          {{ this.state|float(0) }}
+        {%- else -%} 0 {%- endif -%}
+      attributes:
+        started: >-
+          {%- if grace == 'start' -%}
+            {{ now().timestamp() }}
+          {%- elif grace == 'keep' -%}
+            {{ this.attributes.get('started') }}
+          {%- else -%} {{ none }} {%- endif -%}

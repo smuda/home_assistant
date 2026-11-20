@@ -18,8 +18,8 @@ import datetime as dt
 import unittest
 
 from ha_harness import (
-    CMD,
-    EMS,
+    CMD_HELD,
+    EMS_HELD,
     NOW,
     P1_RAW,
     PAUSED,
@@ -65,8 +65,8 @@ def build_entities(
     def put(eid, state, last_changed=changed, last_reported=reported):
         e[eid] = Entity(str(state), last_changed, last_reported)
 
-    put(EMS, ems)
-    put(CMD, cmd)
+    put(EMS_HELD, ems)
+    put(CMD_HELD, cmd)
     if sustained is not None:
         put(SUSTAINED, sustained)
     put(BATT, batt_w)
