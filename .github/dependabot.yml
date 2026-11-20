@@ -17,6 +17,11 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 3
+    # One PR per dependency across all dashboard modules, not one per
+    # directory.
+    groups:
+      grafana-dashboards:
+        group-by: "dependency-name"
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
