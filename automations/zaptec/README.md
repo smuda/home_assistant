@@ -441,7 +441,7 @@ sensor; nothing else needs the number):
 
 ```
 gap = price_now - min(mean import cost over any N-hour window that
-                      starts at or after now and ends by 06:00)
+                      starts at or after now and ends by the horizon)
 ```
 
 - The curve is the `today` and `tomorrow` attributes of
@@ -454,10 +454,12 @@ gap = price_now - min(mean import cost over any N-hour window that
 - It notifies only when `gap` is below
   `input_number.elbil_laddpris_gap` (SEK/kWh). A negative gap -- now is
   already the cheapest -- is below the threshold too, so it notifies.
-- It fails quiet. If the series cannot supply a full N-hour window
-  before 06:00 (for example tomorrow's prices are not published yet),
-  or the current quarter-hour is missing, it sends nothing rather than
-  a misleading number.
+- The horizon is 06:00, or the end of the published series if that is
+  earlier. Before tomorrow's prices are out the series ends at 24:00
+  today, so a midday plug-in searches up to midnight.
+- It fails quiet. If not even a full N-hour window fits before the
+  horizon, or the current quarter-hour is missing, it sends nothing
+  rather than a misleading number.
 
 The notification goes to `notify.parents` in Swedish, naming the price
 now, the cheapest window's mean price and start time, and the gap in
