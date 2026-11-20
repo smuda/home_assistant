@@ -225,6 +225,13 @@ $(VENV)/.installed: requirements-dev.txt
 	$(VENV_PY) -m pip install -q -r requirements-dev.txt
 	@touch $@
 
+# Same stamp pattern for the Node tools: npm ci only when the lockfile
+# changes. --ignore-scripts is deliberate: lint needs only markdownlint,
+# which has no install script, and esbuild/fsevents run without theirs.
+node_modules/.installed: package-lock.json
+	npm ci --ignore-scripts
+	@touch $@
+
 # make stops at the first failing suite.
 test: $(VENV)/.installed
 	$(VENV_PY) -m unittest discover -s tests/zaptec
@@ -234,9 +241,9 @@ test: $(VENV)/.installed
 
 # Runs every check even after a failure, so one pass reports all
 # findings, then fails if any check did.
-lint: $(VENV)/.installed
+lint: $(VENV)/.installed node_modules/.installed
 	@status=0; \
-	  git ls-files -z '*.md' | xargs -0 markdownlint -- || status=1; \
+	  git ls-files -z '*.md' | xargs -0 node_modules/.bin/markdownlint -- || status=1; \
 	  git ls-files -z '*.md' | xargs -0 $(VENV_PY) -I tools/check_ascii.py || status=1; \
 	  $(VENV)/bin/yamllint --strict $(YAML_DIRS) || status=1; \
 	  exit $$status
