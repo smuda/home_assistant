@@ -2,9 +2,10 @@
 # Watch-only. It NEVER writes to the charger (that would suspend Eco
 # Mode; see Dynamic_fuse_protection.yaml and the README). When Eco Mode
 # holds a plug-in in connected_requesting and waiting for the cheapest
-# window before 06:00 would save less than input_number.elbil_laddpris_gap,
-# it sends one notification so a human can tap "Start charging" in the
-# Zaptec app (the one lever that beats the scheduler).
+# window before 06:00 (or the end of the published prices, if earlier)
+# would save less than input_number.elbil_laddpris_gap, it sends one
+# notification so a human can tap "Start charging" in the Zaptec app
+# (the one lever that beats the scheduler).
 #
 # The `for: "00:02:00"` is load-bearing: when Eco starts at once the
 # status passes through connected_requesting in seconds (seen
@@ -15,10 +16,12 @@ alias: Zaptec Eco Mode nudge (worth overriding)
 description: >-
   Sends a phone notification when Zaptec Eco Mode has held a plug-in
   in connected_requesting for two minutes and the import-cost saving
-  from waiting for the cheapest N-hour window before 06:00 is below
+  from waiting for the cheapest N-hour window before 06:00, or the end
+  of the published prices if earlier, is below
   input_number.elbil_laddpris_gap. Reads only; never writes the
-  charger. Fails quiet when the price series cannot cover a full
-  window before 06:00.
+  charger. Sends nothing when no full window fits before that horizon,
+  the current price is missing, or the window length reads 0
+  (input_number.elbil_laddfonster_timmar unavailable).
 mode: single
 
 triggers:
@@ -53,8 +56,10 @@ variables:
     {%- for e in serie if e[0] == now_ms -%}{%- set ns.p = e[1] -%}{%- endfor -%}
     {{ ns.p }}
   # Cheapest mean over any run of `behov` consecutive entries that
-  # starts at or after now and ends by the deadline. [mean, start_ms]
-  # or none when no such window fits (e.g. tomorrow not yet published).
+  # starts at or after now and ends by the deadline. Only published
+  # entries can form a window, so before tomorrow's prices are out the
+  # search effectively ends at 24:00 today. [mean, start_ms] or none
+  # when no such window fits (e.g. a late plug-in before publication).
   best_window: >-
     {%- set fwd = namespace(items=[]) -%}
     {%- for e in serie if e[0] >= now_ms -%}

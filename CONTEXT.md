@@ -155,9 +155,10 @@ _Avoid_: forced stop, battery lock, charge cap
 
 **Eco Mode nudge**:
 A phone notification sent when Eco Mode is holding a plugged-in car
-and waiting for the cheapest window before 06:00 would save less than
-a set threshold. Watch-only: it never writes to the charger, it only
-asks a human to start the charge by hand in the Zaptec app.
+and waiting for the cheapest window before 06:00 (or the end of the
+published prices, if earlier) would save less than a set threshold.
+Watch-only: it never writes to the charger, it only asks a human to
+start the charge by hand in the Zaptec app.
 _Avoid_: auto start, override, smart charge
 
 **Full**:
