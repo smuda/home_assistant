@@ -1,0 +1,18 @@
+# Threshold for the Eco Mode nudge in
+# automations/zaptec/Eco_mode_nudge.yaml: the smallest import-cost
+# saving (price now minus the cheapest N-hour window before 06:00)
+# worth asking a human to override Eco Mode in the Zaptec app for.
+# See that README section for the rationale and the backtest.
+#
+# No `initial:`, so a value set on the dashboard survives a restart
+# instead of snapping back every reboot (same reasoning as
+# ../input_boolean/zaptec_fuse_paused.yaml). A fresh instance therefore
+# comes up at `min`; set it to 0.50 once after the first deploy:
+#   input_number.set_value, entity elbil_laddpris_gap, value 0.50
+name: Laddpris gap
+icon: mdi:cash-clock
+min: 0
+max: 2
+step: 0.05
+unit_of_measurement: "SEK/kWh"
+mode: box

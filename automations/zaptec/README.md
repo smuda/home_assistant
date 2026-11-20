@@ -416,6 +416,81 @@ When first deployed, the old caps are not undone: set
 `number.battery_max_discharge_power` to 10600 by hand if the car was
 charging at the time.
 
+## Eco Mode nudge
+
+`Eco_mode_nudge.yaml` is the odd one out here: it only watches and
+notifies, and never writes to the charger. When the car is plugged
+in, Eco Mode either starts charging at once or holds the session in
+`connected_requesting` until the cheapest hours before its 06:00
+"ready by" deadline. Home Assistant cannot override that hold (a
+charger write would suspend Eco; see "Do not disturb Eco Mode"
+above), but tapping "Start charging" in the Zaptec app does. The
+nudge tells a human when a hold is worth that tap and leaves the
+decision, and every charger action, to them.
+
+It fires when `sensor.zag064494_laddstatus` has been
+`connected_requesting` for two minutes (`for: "00:02:00"`). The delay
+is load-bearing: when Eco decides to start at once the status passes
+through `connected_requesting` in a few seconds (seen 2026-09-20), so
+without the wait every plug-in would notify pointlessly. Two minutes
+means Eco is genuinely holding.
+
+It then compares the import cost now against the cheapest charging
+window still ahead, in the automation's `variables:` (no template
+sensor; nothing else needs the number):
+
+```
+gap = price_now - min(mean import cost over any N-hour window that
+                      starts at or after now and ends by 06:00)
+```
+
+- The curve is the `today` and `tomorrow` attributes of
+  `sensor.elpris_serie_se3` (`../../templates/`), each
+  `[epoch_ms, SEK/kWh]` at 15-minute resolution, full import cost.
+- N is `input_number.elbil_laddfonster_timmar`, the same window-length
+  helper the charge-window price sensor reads. The backtest showed
+  window length moves the median gap by about 3 ore, so there is no
+  second knob.
+- It notifies only when `gap` is below
+  `input_number.elbil_laddpris_gap` (SEK/kWh). A negative gap -- now is
+  already the cheapest -- is below the threshold too, so it notifies.
+- It fails quiet. If the series cannot supply a full N-hour window
+  before 06:00 (for example tomorrow's prices are not published yet),
+  or the current quarter-hour is missing, it sends nothing rather than
+  a misleading number.
+
+The notification goes to `notify.parents` in Swedish, naming the price
+now, the cheapest window's mean price and start time, and the gap in
+ore/kWh. Its wording suggests and never claims a charge started -- the
+automation has started nothing and cannot know whether anyone acts. It
+carries a `URI` action deep-linking to the Zaptec app
+(`https://portal.zaptec.com/app/config/x`), so it is one tap from the
+notification to the override.
+
+One nudge per plug-in: the trigger fires once on entering the hold and
+there is no periodic re-check, so a price that falls further during a
+long hold stays quiet. Add a `time_pattern` trigger later if that
+proves too quiet in practice.
+
+The deadline here is 06:00, the live Eco "ready by" time (above, and
+the fuse guard's README). The issue's summer backtest used a 07:00
+horizon and a G = 0.50 threshold giving roughly two nudges a month; in
+winter the high grid tariff from 06:00 to 22:00 keeps evening gaps
+above about 0.46 SEK/kWh, so expect few nudges from November to March.
+
+### Required helper
+
+`helpers/input_number/elbil_laddpris_gap.yaml` (repo root) defines
+`input_number.elbil_laddpris_gap`, the smallest saving worth a nudge,
+loaded via `input_number: !include_dir_named helpers/input_number/` in
+`configuration.yaml`. Like the other helpers it has no `initial:`, so
+a fresh instance comes up at `min` (0); set it to 0.50 once after the
+first deploy:
+
+```
+input_number.set_value, entity elbil_laddpris_gap, value 0.50
+```
+
 ## Configuration
 
 Edit the `variables` block in `Dynamic_fuse_protection.yaml`:

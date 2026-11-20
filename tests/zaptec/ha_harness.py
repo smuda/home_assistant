@@ -25,10 +25,11 @@ P1_RAW = [f"sensor.p1_meter_strom_fas_{n}" for n in (1, 2, 3)]
 
 
 class Entity:
-    def __init__(self, state, last_changed, last_reported):
+    def __init__(self, state, last_changed, last_reported, attributes=None):
         self.state = state
         self.last_changed = last_changed
         self.last_reported = last_reported
+        self.attributes = attributes or {}
 
 
 class Domain:
@@ -66,6 +67,20 @@ def make_env(entities):
         eid in entities and entities[eid].state == value
     )
     env.globals["now"] = lambda: NOW
+    env.globals["state_attr"] = lambda eid, attr: (
+        entities[eid].attributes.get(attr) if eid in entities else None
+    )
+    env.globals["as_timestamp"] = lambda v: (
+        v.timestamp() if isinstance(v, dt.datetime) else float(v)
+    )
+    env.globals["timedelta"] = dt.timedelta
+    # Tests treat "local" as UTC (NOW is UTC), so the whole chain -- the
+    # 06:00 deadline, the series epochs and this formatter -- stays in
+    # one zone, the same self-consistency the live system has in
+    # Europe/Stockholm.
+    env.filters["timestamp_custom"] = lambda ts, fmt, local=True: (
+        dt.datetime.fromtimestamp(float(ts), dt.timezone.utc).strftime(fmt)
+    )
     return env
 
 

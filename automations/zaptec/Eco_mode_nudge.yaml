@@ -1,0 +1,107 @@
+# Eco Mode nudge: notify when a held plug-in is worth starting by hand.
+# Watch-only. It NEVER writes to the charger (that would suspend Eco
+# Mode; see Dynamic_fuse_protection.yaml and the README). When Eco Mode
+# holds a plug-in in connected_requesting and waiting for the cheapest
+# window before 06:00 would save less than input_number.elbil_laddpris_gap,
+# it sends one notification so a human can tap "Start charging" in the
+# Zaptec app (the one lever that beats the scheduler).
+#
+# The `for: "00:02:00"` is load-bearing: when Eco starts at once the
+# status passes through connected_requesting in seconds (seen
+# 2026-09-20), and that must not notify. Rationale, backtest and the
+# 06:00 deadline live in the README; keep it there, not here.
+id: "1795478400000"
+alias: Zaptec Eco Mode nudge (worth overriding)
+description: >-
+  Sends a phone notification when Zaptec Eco Mode has held a plug-in
+  in connected_requesting for two minutes and the import-cost saving
+  from waiting for the cheapest N-hour window before 06:00 is below
+  input_number.elbil_laddpris_gap. Reads only; never writes the
+  charger. Fails quiet when the price series cannot cover a full
+  window before 06:00.
+mode: single
+
+triggers:
+  - trigger: state
+    entity_id: sensor.zag064494_laddstatus
+    to: connected_requesting
+    for: "00:02:00"
+
+variables:
+  # N-hour window length, reused from the charge-window sensor's helper
+  # (no second knob; the backtest shows window length barely moves the
+  # gap). 4 entries per hour at the series' 15-minute resolution.
+  n_hours: "{{ states('input_number.elbil_laddfonster_timmar') | int(0) }}"
+  behov: "{{ n_hours * 4 }}"
+  gap_threshold: "{{ states('input_number.elbil_laddpris_gap') | float(0) }}"
+  # Full import-cost curve, today + tomorrow, each [epoch_ms, SEK/kWh]
+  # at 15-minute resolution. tomorrow is [] until the day-ahead prices
+  # release (~15-16).
+  serie: >-
+    {{ (state_attr('sensor.elpris_serie_se3', 'today') or [])
+       + (state_attr('sensor.elpris_serie_se3', 'tomorrow') or []) }}
+  # Current quarter-hour, epoch ms (floor now to a 900 s boundary).
+  now_ms: "{{ ((as_timestamp(now()) // 900) * 900000) | int }}"
+  # Next 06:00 local time (Eco's "ready by" deadline), epoch ms.
+  deadline_ms: >-
+    {%- set d6 = now().replace(hour=6, minute=0, second=0, microsecond=0) -%}
+    {%- set deadline = d6 if now() < d6 else d6 + timedelta(days=1) -%}
+    {{ (as_timestamp(deadline) * 1000) | int }}
+  # Price for the current quarter-hour, or none if the series lacks it.
+  price_now: >-
+    {%- set ns = namespace(p=none) -%}
+    {%- for e in serie if e[0] == now_ms -%}{%- set ns.p = e[1] -%}{%- endfor -%}
+    {{ ns.p }}
+  # Cheapest mean over any run of `behov` consecutive entries that
+  # starts at or after now and ends by the deadline. [mean, start_ms]
+  # or none when no such window fits (e.g. tomorrow not yet published).
+  best_window: >-
+    {%- set fwd = namespace(items=[]) -%}
+    {%- for e in serie if e[0] >= now_ms -%}
+      {%- set fwd.items = fwd.items + [e] -%}
+    {%- endfor -%}
+    {%- set ns = namespace(best=none, start=none) -%}
+    {%- for i in range(fwd.items | count) -%}
+      {%- set w = fwd.items[i:i + behov] -%}
+      {%- if behov > 0 and (w | count) == behov
+             and (w[behov - 1][0] + 900000) <= deadline_ms -%}
+        {%- set s = namespace(tot=0) -%}
+        {%- for x in w -%}{%- set s.tot = s.tot + x[1] -%}{%- endfor -%}
+        {%- set mean = s.tot / behov -%}
+        {%- if ns.best is none or mean < ns.best -%}
+          {%- set ns.best = mean -%}
+          {%- set ns.start = w[0][0] -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {{ [ns.best, ns.start] if ns.best is not none else none }}
+  best: "{{ best_window[0] if best_window is not none else none }}"
+  best_start_ms: "{{ best_window[1] if best_window is not none else none }}"
+  # Fail quiet unless we have both a price now and a full window ahead.
+  can_notify: "{{ n_hours > 0 and price_now is not none and best is not none }}"
+  gap: "{{ (price_now - best) if can_notify else none }}"
+
+conditions:
+  # Notify only when a real saving exists and it is below the threshold.
+  # A negative gap (now is already the cheapest) is below it too, so it
+  # notifies. can_notify short-circuits a missing price or window.
+  - condition: template
+    value_template: "{{ can_notify and gap < gap_threshold }}"
+
+actions:
+  - action: notify.parents
+    data:
+      title: "Elbilen väntar på Eco Mode"
+      message: >-
+        Nu {{ '%.2f' | format(price_now) | replace('.', ',') }} kr/kWh,
+        billigast {{ '%.2f' | format(best) | replace('.', ',') }} kl
+        {{ (best_start_ms / 1000) | timestamp_custom('%H:%M', true) }}.
+        Att vänta sparar {{ (gap * 100) | round(0) | int }} öre/kWh.
+        Starta i Zaptec-appen om du vill ladda nu.
+      data:
+        push:
+          interruption-level: time-sensitive
+        actions:
+          - action: URI
+            title: "Öppna Zaptec"
+            uri: https://portal.zaptec.com/app/config/x
