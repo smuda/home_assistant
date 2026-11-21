@@ -91,7 +91,9 @@ back below the threshold (with a small hysteresis), the automation
 presses resume and clears the helper, so charging restarts
 without manual intervention. The helper also lets it tell "we
 paused for the fuse" apart from a normally finished charge, and is
-cleared if the car is unplugged while paused.
+cleared if the car is unplugged while paused, or if the car charges
+again after a resume from outside HA (see "Resumed outside HA"
+below).
 
 Several guards keep this from becoming a rapid stop/resume cascade,
 which can trip the charger's restart warning (see above) and abort
@@ -133,6 +135,40 @@ trigger id (`stop_confirm`) therefore counts as confirmed. If
 never turns on and the last-resort stop cannot fire; the helper must
 be deployed with the automation (accepted risk).
 
+Resumed outside HA. While `input_boolean.zaptec_fuse_paused` is on,
+the stop and current-write steps do not run. On 2026-11-18 04:14 UTC
+a human pressed resume in the Zaptec app during a fuse pause (#32)
+and the guard could neither stop nor lower the car until load fell
+enough to resume.
+
+The guard clears the flag when `laddstatus` is
+`connected_charging` and its `last_changed` is later than the flag's.
+The comparison keeps the flag on during the cloud lag right after our
+own stop, when `laddstatus` can still read `connected_charging` from
+before.
+
+It only clears the flag; later runs stop or limit as usual. A manual
+resume does not override fuse protection: if `must_stop` still holds,
+the guard stops the car again after `stop_confirm` and
+`restop_lockout` (counted from the flag's `last_changed`, so from the
+clear), plus up to a minute or two more because the next run comes
+on the minute tick. Battery hold is unaffected: it holds while
+`laddstatus` is `connected_charging` whatever the flag says.
+
+Limitations: if someone resumes before the cloud has shown our stop
+(`laddstatus` never leaves `connected_charging` in HA), its
+`last_changed` stays older than the flag's, so the flag is not
+cleared and the guard stays blind until load falls enough to resume
+or the car is unplugged. Accepted: it needs a resume within the
+cloud lag of our stop (minutes), and the 2026-11-18 resume came 11
+minutes in. The car is at 6 A meanwhile. The clear is a state check
+on every run, not a one-shot trigger on the transition, so a dropped
+run (`mode: single`) or a restart cannot lose it. The cost: any
+`laddstatus` change that ends in `connected_charging` after the flag
+counts, for example a blip through `unavailable` during the lag. If
+`must_stop` still holds, the guard stops again; otherwise the car
+can stay stopped, a lost charge, not a fuse risk.
+
 ## How it works
 
 For each phase:
@@ -149,14 +185,17 @@ to the car's 6-16 A window -> `raw_target`.
 Each evaluation picks one action, in priority order:
 
 1. Clear the pause helper if the car is unplugged while paused.
-2. Resume (press resume, clear helper) if we are paused and load
+2. Clear the pause helper (and nothing else) if we are paused and
+   the car is charging again, with `laddstatus` changed after the
+   helper (resumed from outside HA).
+3. Resume (press resume, clear helper) if we are paused and load
    has fallen so `other_load + 6 A <= fuse - resume_hyst`, and the
    stop has been held at least `resume_min_hold` (300 s).
-3. Stop (press stop, set helper) if not paused, charging, even 6 A
+4. Stop (press stop, set helper) if not paused, charging, even 6 A
    would breach the fuse (`other_load + 6 A >= fuse`), that has held
    for `stop_confirm` (20 s), and at least `restop_lockout` (30 s)
    has passed since the last resume.
-4. Set the max charge current to `raw_target` if not paused,
+5. Set the max charge current to `raw_target` if not paused,
    charging, and either `|raw_target - current| >= deadband`
    and `min_interval` has passed (normal path), or a phase
    is `>= emergency_phase` (24 A) and a reduction is needed (safety
