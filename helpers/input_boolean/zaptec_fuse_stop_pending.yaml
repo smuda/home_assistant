@@ -1,0 +1,9 @@
+# Stop-confirmation timer for
+# automations/zaptec/Dynamic_fuse_protection.yaml. on = must_stop
+# has been true since this helper's last_changed. Nothing else may
+# toggle it. `initial: false` is deliberate, unlike
+# zaptec_fuse_paused. See automations/zaptec/README.md, "Stop
+# confirmation".
+name: zaptec_fuse_stop_pending
+icon: mdi:timer-alert-outline
+initial: false
