@@ -21,9 +21,9 @@ EMS = "sensor.ems_mode_selection_raw"
 CMD = "sensor.battery_forced_charge_discharge_cmd_raw"
 EMS_HELD = "sensor.ems_mode_selection_raw_held"
 CMD_HELD = "sensor.battery_forced_charge_discharge_cmd_raw_held"
-GRACE = "sensor.fuse_guard_battery_grace"
 SUSTAINED = "binary_sensor.p1_sustained_overload"
 PAUSED = "input_boolean.zaptec_fuse_paused"
+STOP_PENDING = "input_boolean.zaptec_fuse_stop_pending"
 P1_RAW = [f"sensor.p1_meter_strom_fas_{n}" for n in (1, 2, 3)]
 
 

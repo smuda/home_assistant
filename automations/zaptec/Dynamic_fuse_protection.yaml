@@ -5,7 +5,9 @@
 # the charge. A near-fuse reading still triggers an immediate safety
 # cut. As a LAST RESORT, when even the 6 A minimum will not fit under
 # the fuse, it stops the car (a controlled stop is less harmful than
-# tripping the whole-house main fuse) and resumes when load drops.
+# tripping the whole-house main fuse) and resumes when load drops. The
+# stop needs must_stop to hold for stop_confirm; the emergency cut
+# stays immediate. See README.md, "Stop confirmation".
 # IMPORTANT: only acts while actually charging (connected_charging).
 # It never writes the charge current while the car is disconnected or
 # merely waiting (connected_requesting), because writing the charger
@@ -17,7 +19,8 @@
 # to the fuse, and counts it as load again on a sustained P1
 # overload. Reads the EMS mode and command from the held copies in
 # templates/sungrow_ems_held.yaml.
-# Requires helper: input_boolean.zaptec_fuse_paused. See README.md.
+# Requires helpers: input_boolean.zaptec_fuse_paused and
+# input_boolean.zaptec_fuse_stop_pending. See README.md.
 id: "1781429136630"
 alias: Zaptec dynamic fuse protection (charge current)
 description: >-
@@ -27,11 +30,12 @@ description: >-
   changes). A phase nearing the fuse forces an immediate reduction.
   Normally floors at 6 A rather than stopping; only when even 6 A
   would still breach the fuse does it stop the car, resuming
-  automatically once household load falls. Acts only while charging
-  so it does not disturb Zaptec Eco Mode scheduling. Ignores the
-  battery's grid charge while the 1KOMMA5 optimiser is in control and
-  yielding; counts it as household load again on a sustained P1
-  overload.
+  automatically once household load falls. A stop needs the
+  must-stop condition to hold for stop_confirm (see README.md); the
+  emergency cut does not wait. Acts only while charging so it does
+  not disturb Zaptec Eco Mode scheduling. Ignores the battery's grid
+  charge while the 1KOMMA5 optimiser is in control and yielding;
+  counts it as household load again on a sustained P1 overload.
 mode: single
 max_exceeded: silent
 
@@ -54,13 +58,23 @@ triggers:
   - trigger: state
     entity_id: binary_sensor.p1_sustained_overload
     to: "on"
+  # Wake the guard when the stop confirmation runs out; the other
+  # triggers may not fire in that window. The literal must equal
+  # stop_confirm.
+  - trigger: state
+    entity_id: input_boolean.zaptec_fuse_stop_pending
+    to: "on"
+    for: "00:00:20"
+    id: stop_confirm
 
 conditions:
   # Run only while actually charging, or while we hold a fuse-pause
-  # (so we can evaluate resume). Never while disconnected or merely
-  # requesting - touching the charger then would suspend Eco Mode.
+  # (so we can evaluate resume), or while a stop is pending (so a run
+  # after charging ended still clears the timer). Never while
+  # disconnected or merely requesting - touching the charger then
+  # would suspend Eco Mode.
   - condition: template
-    value_template: "{{ charging or is_paused }}"
+    value_template: "{{ charging or is_paused or stop_pending }}"
 
 variables:
   fuse: 25  # main fuse, amps per phase
@@ -71,15 +85,13 @@ variables:
   resume_hyst: 6  # extra amps load must fall before resuming (widened to damp flap)
   resume_min_hold: 300  # min seconds a fuse-stop is held before resume is allowed
   restop_lockout: 30  # min seconds after a resume before another stop is allowed
+  stop_confirm: 20  # s must_stop must hold before a last-resort stop
   ev_min: 6  # Zaptec Go minimum charge current
   ev_max: 16  # installer hardware cap
   max_age: 60  # P1 data older than this (s) is treated as a dropout
   failsafe_other: 18  # assumed other-phase load (A) when P1 is dead
   batt_max_w: 10000  # SH10RT battery charge rating, caps a bad reading
   nominal_v: 230  # battery W -> per-phase A (SH10RT charges all three phases evenly)
-  grace_min: 10  # min seconds the battery grace holds the discount
-  grace_power_w: 500  # after grace_min, the grace ends below this battery power
-  grace_max: 30  # max seconds of battery grace
   current_max: "{{ states('number.zag064494_max_laddstrom')|int(0) }}"
   # Charger current: raw, never filtered. The Zaptec sensor updates
   # only every few minutes (cloud), and a `filter` sensor recomputes
@@ -114,30 +126,13 @@ variables:
   # Heartbeat box dies, the mode leaves 3 and the discount ends. 230 V
   # nominal and AC-side losses put the estimate below the real grid
   # draw, the safe side.
-  overload_off: "{{ is_state('binary_sensor.p1_sustained_overload', 'off') }}"
   optimiser_charging: >-
     {{ is_state('sensor.ems_mode_selection_raw_held', '3')
        and is_state('sensor.battery_forced_charge_discharge_cmd_raw_held', '170')
-       and overload_off }}
-  # Both held values are real (the hold has not expired).
-  held_ok: >-
-    {{ states('sensor.ems_mode_selection_raw_held') not in ['unavailable', 'unknown']
-       and states('sensor.battery_forced_charge_discharge_cmd_raw_held')
-           not in ['unavailable', 'unknown'] }}
-  # Battery grace: the values just left 3/170 while P1 still carries
-  # the battery's charge. Keeps the discount at the power recorded at
-  # the change. See "Battery grid charge" in README.md.
-  grace_w: "{{ states('sensor.fuse_guard_battery_grace')|float(0) }}"
-  grace_age: >-
-    {{ now().timestamp()
-       - state_attr('sensor.fuse_guard_battery_grace', 'started')|float(0) }}
-  batt_live_w: "{{ states('sensor.battery_charging_power')|float(0) }}"
-  in_grace: >-
-    {{ not optimiser_charging and overload_off and held_ok
-       and 0 <= grace_age < grace_max
-       and (grace_age < grace_min or batt_live_w >= grace_power_w) }}
-  batt_w: "{{ grace_w if in_grace else batt_live_w if optimiser_charging else 0 }}"
-  batt_a: "{{ [ [ batt_w, 0 ]|max, batt_max_w ]|min / 3 / nominal_v }}"
+       and is_state('binary_sensor.p1_sustained_overload', 'off') }}
+  batt_a: >-
+    {{ ([ [ states('sensor.battery_charging_power')|float(0), 0 ]|max,
+          batt_max_w ]|min / 3 / nominal_v) if optimiser_charging else 0 }}
   # Other (non-car, non-yielding-battery) load per phase. When the P1
   # feed is dead, fail SAFE to failsafe_other so the car floors to
   # 6 A -- never read a dropout as zero load, which would let it allow
@@ -165,6 +160,12 @@ variables:
   secs_since_pause: >-
     {{ (now() - states.input_boolean.zaptec_fuse_paused.last_changed)
        .total_seconds() }}
+  # Stop-confirmation timer: its last_changed is when must_stop first
+  # held (see helpers/input_boolean/zaptec_fuse_stop_pending.yaml).
+  stop_pending: "{{ is_state('input_boolean.zaptec_fuse_stop_pending', 'on') }}"
+  secs_pending: >-
+    {{ (now() - states.input_boolean.zaptec_fuse_stop_pending.last_changed)
+       .total_seconds() if stop_pending else 0 }}
   # Only "actually charging" - NOT connected_requesting. Acting during
   # requesting (Eco waiting) would suspend Eco and start charging now.
   charging: "{{ status == 'connected_charging' }}"
@@ -178,6 +179,16 @@ variables:
   # Even the 6 A minimum would push a phase to/over the fuse: the
   # car cannot help, so a controlled stop beats a tripped main fuse.
   must_stop: "{{ [s1, s2, s3]|max + ev_min >= fuse }}"
+  # must_stop while the guard may act (charging, not already paused).
+  stop_wanted: "{{ not is_paused and charging and must_stop }}"
+  # The `for:` trigger and now()/last_changed use different clocks, so
+  # the re-check can read 19.99 s; its own id counts as confirmed.
+  # See README.md, "Stop confirmation".
+  stop_confirmed: >-
+    {{ stop_pending
+       and (secs_pending >= stop_confirm
+            or (trigger is defined and trigger.id is defined
+                and trigger.id == 'stop_confirm')) }}
   # Resume only after load has fallen well below that (hysteresis).
   can_resume: "{{ other_max + ev_min <= fuse - resume_hyst }}"
   # Write a new max only on a meaningful change after the interval,
@@ -187,6 +198,19 @@ variables:
        or (delta <= -1 and emergency) }}
 
 actions:
+  # Keep the confirmation timer in sync with stop_wanted. The
+  # variables keep their run-start values: a timer started here has
+  # secs_pending 0 this run.
+  - if: "{{ stop_wanted and not stop_pending }}"
+    then:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.zaptec_fuse_stop_pending
+  - if: "{{ not stop_wanted and stop_pending }}"
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.zaptec_fuse_stop_pending
   - choose:
       # Clear a stale pause flag once the car is unplugged. We do NOT
       # touch the charge current while disconnected (that would
@@ -213,11 +237,14 @@ actions:
             target:
               entity_id: input_boolean.zaptec_fuse_paused
 
-      # Last resort: even 6 A will not fit under the fuse -> stop.
+      # Last resort: even 6 A will not fit under the fuse -> stop, once
+      # must_stop has held for stop_confirm. While it is pending the
+      # choose falls through, so the emergency cut below still fires
+      # on the first evaluation.
       - conditions:
           - condition: template
             value_template: >-
-              {{ not is_paused and charging and must_stop
+              {{ stop_wanted and stop_confirmed
                  and secs_since_pause >= restop_lockout }}
         sequence:
           - action: button.press
@@ -226,6 +253,9 @@ actions:
           - action: input_boolean.turn_on
             target:
               entity_id: input_boolean.zaptec_fuse_paused
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.zaptec_fuse_stop_pending
 
       # Normal path: adjust max charge current within the fuse.
       - conditions:

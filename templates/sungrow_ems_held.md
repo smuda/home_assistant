@@ -1,15 +1,14 @@
-# Sungrow EMS held values and battery grace
+# Sungrow EMS held values
 
-`sungrow_ems_held.yaml` defines three trigger-based template sensors
+`sungrow_ems_held.yaml` defines two trigger-based template sensors
 that the Zaptec fuse guard reads instead of the raw Sungrow
 holding-register sensors. Why the guard needs them is in
 [Battery grid charge](../automations/zaptec/README.md#battery-grid-charge).
 
-| Entity                                                | What it is                                           |
-| ----------------------------------------------------- | ---------------------------------------------------- |
-| `sensor.ems_mode_selection_raw_held`                  | `sensor.ems_mode_selection_raw`, held over failures  |
-| `sensor.battery_forced_charge_discharge_cmd_raw_held` | The forced charge/discharge command, held likewise   |
-| `sensor.fuse_guard_battery_grace`                     | Battery power (W) and start time of the latest grace |
+| Entity                                                | What it is                                          |
+| ----------------------------------------------------- | --------------------------------------------------- |
+| `sensor.ems_mode_selection_raw_held`                  | `sensor.ems_mode_selection_raw`, held over failures |
+| `sensor.battery_forced_charge_discharge_cmd_raw_held` | The forced charge/discharge command, held likewise  |
 
 ## Held values
 
@@ -34,23 +33,6 @@ The two timers are `for:` state triggers, not `last_changed` (a
 failed read resets that). They sit halfway between polls, so poll
 jitter cannot race them. On 2026-11-20 every dropout lasted 1 or 2
 polls, none 3.
-
-## Battery grace record
-
-`sensor.fuse_guard_battery_grace` records when a held value left
-External EMS (`3`) or `Forced charge` (`170`) while both read 3/170
-and `binary_sensor.p1_sustained_overload` was off. Its state is
-`sensor.battery_charging_power` at that moment, and its `started`
-attribute is the epoch time.
-
-It is cleared (state 0, no `started`) when the values return to
-3/170, when a held value is `unavailable` (a failed read never starts
-a grace), and when the change comes during a sustained overload. A
-second change during a grace keeps the first start.
-
-It only records. The grace rules themselves (`grace_min` 10 s,
-`grace_power_w` 500 W, `grace_max` 30 s) are settings in the fuse
-guard and are checked on each guard run.
 
 The battery hold and the overload notification keep reading the raw
 sensors, on purpose.

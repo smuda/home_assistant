@@ -28,7 +28,7 @@ to `configuration.yaml`. Two rules follow from the merge:
 | `charge_window_price.yaml`   | [charge_window_price.md](charge_window_price.md)     | Mean all-in price over the next N hours, N from `input_number.elbil_laddfonster_timmar`.                   |
 | `heartbeat_beslut.yaml`      | [heartbeat_beslut.md](heartbeat_beslut.md)           | 1KOMMA5 battery plan decision as a number (0-3), so Grafana can draw it.                                   |
 | `p1_sustained_overload.yaml` | [p1_sustained_overload.md](p1_sustained_overload.md) | Highest raw P1 phase at or above 27 A for 60 s: the fuse guard's check that the battery optimiser yielded. |
-| `sungrow_ems_held.yaml`      | [sungrow_ems_held.md](sungrow_ems_held.md)           | EMS mode and command held over failed Modbus reads, and the fuse guard's battery grace record.             |
+| `sungrow_ems_held.yaml`      | [sungrow_ems_held.md](sungrow_ems_held.md)           | EMS mode and command held over failed Modbus reads, for the fuse guard.                                    |
 
 ## Deploying
 

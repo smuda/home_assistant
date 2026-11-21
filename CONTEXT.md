@@ -141,7 +141,8 @@ _Avoid_: load balancing, current limiter
 
 **Last-resort stop**:
 Stopping the car outright, chosen when holding it at the floor
-current would no longer keep the phase under the fuse.
+current would no longer keep the phase under the fuse, and only once
+that has held for the confirmation time (20 s).
 _Avoid_: emergency stop, cutoff, trip
 
 **Battery hold**:

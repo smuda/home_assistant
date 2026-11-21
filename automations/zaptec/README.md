@@ -107,6 +107,32 @@ flapping that would otherwise restart the session too often.
 self-imposed values chosen for this house, not figures documented by
 Zaptec.
 
+Stop confirmation. A last-resort stop needs `must_stop` true for
+`stop_confirm` (20 s). The timer is
+`input_boolean.zaptec_fuse_stop_pending`: the guard turns it on when
+`must_stop` first holds, off as soon as a run sees `must_stop`
+false, and off after the stop. A `for: 20 s` trigger on it wakes the
+guard when the time runs out.
+
+Why: on 2026-11-20 `must_stop` held for 4-10 s at each stop while the
+Sungrow readings and P1 disagreed (a 204 blip, a real stop that P1
+had not caught up with yet, a dropout). The longest was about 7 s
+with the hold in place. 20 s rides through that, and a 25 A gG fuse
+must carry 1.25 x In for its conventional time, so 20 s at these
+currents is harmless to the fuse. The 24 A emergency cut stays
+immediate.
+
+Limitations: the guard only sees `must_stop` on its runs, so a dip
+between runs does not reset the timer (the stop is then
+conservative, not late). `mode: single` drops a re-check that
+arrives while another run is in progress; the stop then waits for
+the next trigger, at most the minute tick. The `for:` timer and
+`now()` use different clocks, so the re-check can read 19.99 s; its
+trigger id (`stop_confirm`) therefore counts as confirmed. If
+`input_boolean.zaptec_fuse_stop_pending` is missing, `stop_pending`
+never turns on and the last-resort stop cannot fire; the helper must
+be deployed with the automation (accepted risk).
+
 ## How it works
 
 For each phase:
@@ -127,8 +153,9 @@ Each evaluation picks one action, in priority order:
    has fallen so `other_load + 6 A <= fuse - resume_hyst`, and the
    stop has been held at least `resume_min_hold` (300 s).
 3. Stop (press stop, set helper) if not paused, charging, even 6 A
-   would breach the fuse (`other_load + 6 A >= fuse`), and at least
-   `restop_lockout` (30 s) has passed since the last resume.
+   would breach the fuse (`other_load + 6 A >= fuse`), that has held
+   for `stop_confirm` (20 s), and at least `restop_lockout` (30 s)
+   has passed since the last resume.
 4. Set the max charge current to `raw_target` if not paused,
    charging, and either `|raw_target - current| >= deadband`
    and `min_interval` has passed (normal path), or a phase
@@ -258,49 +285,29 @@ The guard reads the EMS mode and command from held copies
 (`sensor.ems_mode_selection_raw_held`,
 `sensor.battery_forced_charge_discharge_cmd_raw_held`, see
 [the held values](../../templates/sungrow_ems_held.md)). The
-inverter refuses about 8% of holding-register reads, so each raw
-sensor goes `unavailable` for a poll or two about 40-50 times an
-hour. Each dropout ended the discount while P1 still carried the
-battery's ~14 A per phase, and all four fuse-stops on the night of
-2026-11-20 came from that (#44). A held copy keeps the last good
-value for 2 failed polls, logs a warning on the second, and goes
-`unavailable` on the third, which ends the discount as before.
-
-Battery grace. The values also really change for short periods
-(command 170 -> 204 -> 170, EMS mode 3 -> 0 -> 3), and when the
-optimiser really ends a grid charge, P1 carries the battery for up
-to about 20 s while the inverter ramps down. So when a held value
-leaves 3/170 while the discount applies, the guard keeps the
-discount, computed from the battery power recorded at the change
-(`sensor.fuse_guard_battery_grace`), not the live one: P1 lags the
-battery reading by about 5 s. The grace lasts at least `grace_min`
-(10 s). After that it ends once the live battery power is below
-`grace_power_w` (500 W), and at `grace_max` (30 s) regardless. It
-ends at once when the values return to 3/170 (the live-power
-discount resumes), when the overload sensor is not `off`, or when a
-held value is `unavailable`. A failed read never starts a grace.
-
-During the grace the guard deliberately undercounts the load, and
-`ptot_max` (so the 24 A cut) excludes the discounted battery too, so
-`grace_max` is the only bound on that window. The grace is checked
-on each guard run, so a battery that drops below 500 W and climbs
-again before 30 s gets the discount back; the cap still holds.
+inverter sometimes refuses a holding-register read, so a raw sensor
+goes `unavailable` for a poll or two. Each dropout ended the discount
+while P1 still carried the battery's ~14 A per phase, which caused
+the fuse-stops of #44. A held copy keeps the last good value for 2
+failed polls and then goes `unavailable`, which ends the discount as
+before. The dropout figures and timers are in that file.
 
 Check the first nights with the car charging under mode 3/170: the
 data never showed the optimiser absorbing a 6 -> 16 A car step.
 
 ## Entities used
 
-| Entity                                | Role                                                 |
-| ------------------------------------- | ---------------------------------------------------- |
-| `number.zag064494_max_laddstrom`      | Control -- max charge current, 0-16 A, step 1        |
-| `button.zag064494_stoppa_laddning`    | Control -- stop charging (last resort)               |
-| `button.zag064494_ateruppta_laddning` | Control -- resume charging                           |
-| `input_boolean.zaptec_fuse_paused`    | Helper -- set while paused for the fuse              |
-| `sensor.zag064494_strom_fas_1..3`     | Charger's own current per phase                      |
-| `sensor.zag064494_laddstatus`         | Charge status (`connected_charging`, ...)            |
-| `sensor.p1_meter_strom_fas_1..3`      | Household total current per phase (incl. the car)    |
-| `sensor.p1_fas_1..3_filtrerad`        | Filtered P1 current used by the stop/emergency logic |
+| Entity                                   | Role                                                 |
+| ---------------------------------------- | ---------------------------------------------------- |
+| `number.zag064494_max_laddstrom`         | Control -- max charge current, 0-16 A, step 1        |
+| `button.zag064494_stoppa_laddning`       | Control -- stop charging (last resort)               |
+| `button.zag064494_ateruppta_laddning`    | Control -- resume charging                           |
+| `input_boolean.zaptec_fuse_paused`       | Helper -- set while paused for the fuse              |
+| `input_boolean.zaptec_fuse_stop_pending` | Helper -- must_stop is true, stop confirmation timer |
+| `sensor.zag064494_strom_fas_1..3`        | Charger's own current per phase                      |
+| `sensor.zag064494_laddstatus`            | Charge status (`connected_charging`, ...)            |
+| `sensor.p1_meter_strom_fas_1..3`         | Household total current per phase (incl. the car)    |
+| `sensor.p1_fas_1..3_filtrerad`           | Filtered P1 current used by the stop/emergency logic |
 
 `ZAG064494` is the Zaptec Go (device type "Apollo"); network is
 `tn_3_phase`, installation type "Smart". The 16 A cap is the
@@ -320,6 +327,13 @@ the automation reads its `last_changed` unguarded. The automation uses
 it to remember a fuse-pause so it can resume automatically and not
 confuse that with a normally finished charge; its `last_changed` is the
 stop/resume timestamp, so nothing else should toggle it.
+
+`helpers/input_boolean/zaptec_fuse_stop_pending.yaml` defines the
+stop-confirmation timer, `input_boolean.zaptec_fuse_stop_pending`,
+loaded and deployed the same way. Its `last_changed` is when
+`must_stop` first held, so nothing else should toggle it. It sets
+`initial: false` so a pending stop from before a restart never
+counts toward the 20 s.
 
 ### Filtered P1 sensors
 
