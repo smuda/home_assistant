@@ -7,7 +7,9 @@
 # the fuse, it stops the car (a controlled stop is less harmful than
 # tripping the whole-house main fuse) and resumes when load drops. The
 # stop needs must_stop to hold for stop_confirm; the emergency cut
-# stays immediate. See README.md, "Stop confirmation".
+# stays immediate. See README.md, "Stop confirmation". A charge
+# resumed from outside HA while paused clears the pause, so the guard
+# can stop or limit the car again.
 # IMPORTANT: only acts while actually charging (connected_charging).
 # It never writes the charge current while the car is disconnected or
 # merely waiting (connected_requesting), because writing the charger
@@ -35,7 +37,9 @@ description: >-
   emergency cut does not wait. Acts only while charging so it does
   not disturb Zaptec Eco Mode scheduling. Ignores the battery's grid
   charge while the 1KOMMA5 optimiser is in control and yielding;
-  counts it as household load again on a sustained P1 overload.
+  counts it as household load again on a sustained P1 overload. A
+  charge resumed from outside HA clears the pause, so the guard can
+  stop or limit the car again.
 mode: single
 max_exceeded: silent
 
@@ -169,6 +173,13 @@ variables:
   # Only "actually charging" - NOT connected_requesting. Acting during
   # requesting (Eco waiting) would suspend Eco and start charging now.
   charging: "{{ status == 'connected_charging' }}"
+  # A charge resumed from outside HA while we hold a fuse pause.
+  # laddstatus must have changed after the pause flag, which skips the
+  # cloud lag after our own stop. See README.md, "Resumed outside HA".
+  resumed_outside: >-
+    {{ is_paused and charging
+       and states.sensor.zag064494_laddstatus.last_changed
+           > states.input_boolean.zaptec_fuse_paused.last_changed }}
   # Stop decision uses the lower of filtered and raw P1 per phase. Raw
   # falls with the car at once after a reduction, while filtered still
   # holds up to 20 s of the old car current and, against the capped c,
@@ -218,6 +229,16 @@ actions:
       - conditions:
           - condition: template
             value_template: "{{ is_paused and status == 'disconnected' }}"
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.zaptec_fuse_paused
+
+      # Resumed outside HA: clear the flag only. See README.md,
+      # "Resumed outside HA".
+      - conditions:
+          - condition: template
+            value_template: "{{ resumed_outside }}"
         sequence:
           - action: input_boolean.turn_off
             target:
