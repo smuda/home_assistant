@@ -145,6 +145,13 @@ current would no longer keep the phase under the fuse, and only once
 that has held for the confirmation time (20 s).
 _Avoid_: emergency stop, cutoff, trip
 
+**Ramp**:
+Raising the car's charge current in a few small steps with a pause
+between them, instead of in one jump, so the optimiser has time to
+make room before the next step lands. Only raises are ramped; a cut
+is always immediate.
+_Avoid_: soft start, step-up, slew
+
 **Battery hold**:
 The house battery held idle, neither charging nor discharging, while
 the car charges, the fuse guard holds it paused, or shortly after a
