@@ -81,6 +81,8 @@ class Guard:
             self.env, automation["variables"], context
         )
         self.calls = []
+        # Rendered data.value of each number.set_value, in order.
+        self.writes = []
 
     def render(self, text):
         return self.env.from_string(text).render(**self.scope)
@@ -117,6 +119,8 @@ class Guard:
             elif "action" in step:
                 target = step["target"]["entity_id"]
                 self.calls.append((step["action"], target))
+                if "value" in step.get("data", {}):
+                    self.writes.append(self.render(step["data"]["value"]))
             else:
                 raise NotImplementedError(step)
 

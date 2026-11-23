@@ -1,0 +1,9 @@
+# Ramp-in-progress flag for
+# automations/zaptec/Dynamic_fuse_protection.yaml. on = the guard is
+# raising the charge current in steps. Its last_changed must be later
+# than laddstatus's for the flag to count. Nothing else may toggle
+# it. `initial: false`: a ramp never survives a restart. See
+# automations/zaptec/README.md, "Ramp".
+name: zaptec_fuse_ramping
+icon: mdi:stairs-up
+initial: false

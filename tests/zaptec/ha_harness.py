@@ -24,6 +24,7 @@ CMD_HELD = "sensor.battery_forced_charge_discharge_cmd_raw_held"
 SUSTAINED = "binary_sensor.p1_sustained_overload"
 PAUSED = "input_boolean.zaptec_fuse_paused"
 STOP_PENDING = "input_boolean.zaptec_fuse_stop_pending"
+RAMPING = "input_boolean.zaptec_fuse_ramping"
 P1_RAW = [f"sensor.p1_meter_strom_fas_{n}" for n in (1, 2, 3)]
 
 
@@ -41,10 +42,10 @@ class Domain:
         self._entities = entities
 
     def __getattr__(self, object_id):
-        try:
-            return self._entities[f"{self._domain}.{object_id}"]
-        except KeyError:
+        # HA returns None for a missing entity, so `is none` guards work.
+        if object_id.startswith("_"):
             raise AttributeError(object_id)
+        return self._entities.get(f"{self._domain}.{object_id}")
 
 
 class States:
