@@ -59,12 +59,53 @@ automation therefore:
 - only changes when the new target differs by at least a
   deadband (3 A), and
 - not more often than a minimum interval (15 min) for normal
-  changes, and
+  changes (a ramp is the one exception, see "Ramp"), and
 - floors at 6 A rather than pausing for ordinary load swings, and
 - allows one immediate reduction if a phase nears the fuse.
 
 Net effect: the current typically changes only once or twice per
 charging session, not continuously.
+
+### Ramp
+
+A raise bigger than `ramp_step` (4 A) is written in steps of at most
+4 A, at least `ramp_interval` (115 s) apart. A cut is never ramped:
+it is written in one step. Only the emergency cut skips
+`min_interval`; a normal cut still waits `min_interval`, which counts
+from the last ramp step. No write is ever below `ev_min` (6 A).
+
+Why: on 2026-11-21 01:00:58 a 6 -> 16 A raise came while the
+optimiser was grid-charging the battery. P1 phase 2 reached 37.8 A
+on the 25 A fuse for about 30 s. The battery discount assumes the
+optimiser gives way at once, but it reacts in a median 10 s, worst
+31 s, and the 11-20 resumes held P1 at or above 25 A for 90-120 s.
+The emergency cut misses it, because `ptot_max` excludes the
+discounted battery.
+
+Why +4 A: the expected spike is about 29-30 A, against 36-38 A for
+one jump.
+
+Why 115 s: just under 120 s, so a step lands on every second
+one-minute run, and nearly 4x the worst observed optimiser reaction.
+
+Why it is OK to break the 15-min rule here: 30 days of history,
+50 charging runs, no session aborted, including bursts of six
+changes in four minutes. evcc adjusts every 30 s by default, and
+Zaptec's 15 min is a recommendation with no vehicle or threshold
+named. The ramp is the one exception to the 15-min rule;
+`min_interval` counts from the last ramp step. The deadband does not
+apply to ramp steps (14 -> 16 is written).
+
+The ramp is tracked by `input_boolean.zaptec_fuse_ramping`. A normal
+raise bigger than `ramp_step` writes the first step and turns it on.
+It turns off when `max_laddstrom` reaches the target, but only after
+the charger's phase sensors (they update every ~2 min) have reported
+since the last write: a stale reading overestimates household load,
+and ending on it would make the next raise wait `min_interval`. It
+also turns off at once on a cut (emergency or normal), a last-resort
+stop or a pause. A flag older than the `laddstatus` `last_changed`
+(an earlier session, or a status blip) is ignored and cleared; then
+the normal rules apply.
 
 ### Last-resort stop (and auto-resume)
 
@@ -195,11 +236,15 @@ Each evaluation picks one action, in priority order:
    would breach the fuse (`other_load + 6 A >= fuse`), that has held
    for `stop_confirm` (20 s), and at least `restop_lockout` (30 s)
    has passed since the last resume.
-5. Set the max charge current to `raw_target` if not paused,
-   charging, and either `|raw_target - current| >= deadband`
-   and `min_interval` has passed (normal path), or a phase
-   is `>= emergency_phase` (24 A) and a reduction is needed (safety
-   path, bypasses the interval).
+5. Set the max charge current to `raw_target`, capped at
+   `current + ramp_step`, if not paused, charging, and either
+   `|raw_target - current| >= deadband` and `min_interval` has passed
+   (normal path), or a phase is `>= emergency_phase` (24 A) and a
+   reduction is needed (safety path, bypasses the interval), or a
+   ramp is in progress, `ramp_interval` has passed and the target is
+   above the current (ramp step: write
+   `min(raw_target, current + ramp_step)`, no deadband or
+   `min_interval`). See "Ramp".
 
 Evaluated once a minute, on charge-status changes, immediately
 when a phase crosses 23 A, or when
@@ -343,6 +388,7 @@ data never showed the optimiser absorbing a 6 -> 16 A car step.
 | `button.zag064494_ateruppta_laddning`    | Control -- resume charging                           |
 | `input_boolean.zaptec_fuse_paused`       | Helper -- set while paused for the fuse              |
 | `input_boolean.zaptec_fuse_stop_pending` | Helper -- must_stop is true, stop confirmation timer |
+| `input_boolean.zaptec_fuse_ramping`      | Helper -- a ramp is in progress                      |
 | `sensor.zag064494_strom_fas_1..3`        | Charger's own current per phase                      |
 | `sensor.zag064494_laddstatus`            | Charge status (`connected_charging`, ...)            |
 | `sensor.p1_meter_strom_fas_1..3`         | Household total current per phase (incl. the car)    |
@@ -373,6 +419,12 @@ loaded and deployed the same way. Its `last_changed` is when
 `must_stop` first held, so nothing else should toggle it. It sets
 `initial: false` so a pending stop from before a restart never
 counts toward the 20 s.
+
+`helpers/input_boolean/zaptec_fuse_ramping.yaml` defines the ramp
+flag, `input_boolean.zaptec_fuse_ramping`, loaded and deployed the
+same way. Its `last_changed` is compared with that of
+`laddstatus`, so nothing else should toggle it. It sets
+`initial: false` so a ramp never survives a restart.
 
 ### Filtered P1 sensors
 
@@ -589,6 +641,10 @@ Edit the `variables` block in `Dynamic_fuse_protection.yaml`:
 - `min_interval` -- minimum seconds between normal changes. 900
   (15 min, per Zaptec). Lower to e.g. `300` (5 min) if 15 min feels
   too sluggish; safety still rests on the emergency path.
+- `ramp_step` -- largest raise in one write, amps. 4. See Ramp
+  above.
+- `ramp_interval` -- minimum seconds between ramp steps. 115. See
+  Ramp above.
 - `emergency_phase` -- any phase at/above this (amps) forces an
   immediate reduction regardless of the interval. 24 (1 A below
   the fuse).
@@ -680,6 +736,10 @@ The battery hold has its own `variables` block in
 - Zaptec API constants including `WARNING_MAX_SESSION_RESTART`
   (third-party client copy):
   https://github.com/stekker/zaptec/blob/main/data/constants.json
+- Zaptec -- API usage guidelines:
+  https://docs.zaptec.com/docs/api-usage-guidelines
+- evcc -- interval (adjusts every 30 s by default):
+  https://docs.evcc.io/en/reference/configuration/interval
 - Zaptec -- Smart charge with Eco Mode:
   https://help.zaptec.com/using-products/smart-charge-with-eco-mode
 - Zaptec -- Charging modes:

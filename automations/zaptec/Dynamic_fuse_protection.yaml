@@ -10,6 +10,9 @@
 # stays immediate. See README.md, "Stop confirmation". A charge
 # resumed from outside HA while paused clears the pause, so the guard
 # can stop or limit the car again.
+# Raises larger than ramp_step go in ramp_step steps ramp_interval
+# apart (a ramp), the one exception to the 15-min rule. See
+# README.md, "Ramp".
 # IMPORTANT: only acts while actually charging (connected_charging).
 # It never writes the charge current while the car is disconnected or
 # merely waiting (connected_requesting), because writing the charger
@@ -21,8 +24,9 @@
 # to the fuse, and counts it as load again on a sustained P1
 # overload. Reads the EMS mode and command from the held copies in
 # templates/sungrow_ems_held.yaml.
-# Requires helpers: input_boolean.zaptec_fuse_paused and
-# input_boolean.zaptec_fuse_stop_pending. See README.md.
+# Requires helpers: input_boolean.zaptec_fuse_paused,
+# input_boolean.zaptec_fuse_stop_pending and
+# input_boolean.zaptec_fuse_ramping. See README.md.
 id: "1781429136630"
 alias: Zaptec dynamic fuse protection (charge current)
 description: >-
@@ -30,6 +34,8 @@ description: >-
   fuse. Uses a deadband and a minimum interval between changes so
   current is adjusted infrequently (vehicles abort on too-frequent
   changes). A phase nearing the fuse forces an immediate reduction.
+  Raises of more than ramp_step are ramped in steps so the optimiser
+  has time to make room; cuts stay immediate.
   Normally floors at 6 A rather than stopping; only when even 6 A
   would still breach the fuse does it stop the car, resuming
   automatically once household load falls. A stop needs the
@@ -85,6 +91,8 @@ variables:
   margin: 3  # safety headroom, amps
   deadband: 3  # min amps difference before changing
   min_interval: 900  # min seconds between normal changes (>= 15 min)
+  ramp_step: 4  # largest raise in one write, amps
+  ramp_interval: 115  # min s between ramp steps
   emergency_phase: 24  # any phase at/above this -> immediate cut
   resume_hyst: 6  # extra amps load must fall before resuming (widened to damp flap)
   resume_min_hold: 300  # min seconds a fuse-stop is held before resume is allowed
@@ -173,6 +181,38 @@ variables:
   # Only "actually charging" - NOT connected_requesting. Acting during
   # requesting (Eco waiting) would suspend Eco and start charging now.
   charging: "{{ status == 'connected_charging' }}"
+  # Ramp state, see README.md, "Ramp". `and` short-circuits, so the
+  # unguarded last_changed reads only run while the flag is on.
+  ramping: "{{ is_state('input_boolean.zaptec_fuse_ramping', 'on') }}"
+  # A flag older than laddstatus belongs to an earlier session (or one
+  # interrupted by a status change), so it is ignored.
+  ramp_live: >-
+    {{ ramping
+       and states.sensor.zag064494_laddstatus is not none
+       and states.input_boolean.zaptec_fuse_ramping.last_changed
+           > states.sensor.zag064494_laddstatus.last_changed }}
+  # The charger's phase sensors have reported since the last write to
+  # max_laddstrom (they update only every ~2 min). A missing sensor
+  # counts as fresh: reading .last_reported on none would fail the
+  # whole variables block, and ending the ramp is the safe direction.
+  car_fresh: >-
+    {{ ramp_live
+       and (states.sensor.zag064494_strom_fas_1 is none
+            or states.sensor.zag064494_strom_fas_1.last_reported
+               > states.number.zag064494_max_laddstrom.last_changed)
+       and (states.sensor.zag064494_strom_fas_2 is none
+            or states.sensor.zag064494_strom_fas_2.last_reported
+               > states.number.zag064494_max_laddstrom.last_changed)
+       and (states.sensor.zag064494_strom_fas_3 is none
+            or states.sensor.zag064494_strom_fas_3.last_reported
+               > states.number.zag064494_max_laddstrom.last_changed) }}
+  ramp_start: "{{ not ramp_live and delta > ramp_step and secs_since >= min_interval }}"
+  # Next ramp step: deadband and min_interval do not apply.
+  ramp_step_due: "{{ ramp_live and delta >= 1 and secs_since >= ramp_interval }}"
+  # Every write is capped at one ramp_step above the current max,
+  # counted from at least ev_min, and no write goes below ev_min
+  # (6 A). A cut (raw_target below current_max) is unaffected.
+  write_value: "{{ [ [ raw_target, [ current_max, ev_min ]|max + ramp_step ]|min, ev_min ]|max }}"
   # A charge resumed from outside HA while we hold a fuse pause.
   # laddstatus must have changed after the pause flag, which skips the
   # cloud lag after our own stop. See README.md, "Resumed outside HA".
@@ -206,7 +246,13 @@ variables:
   # OR as an immediate reduction when a phase nears the fuse.
   do_write: >-
     {{ ((delta | abs) >= deadband and secs_since >= min_interval)
-       or (delta <= -1 and emergency) }}
+       or (delta <= -1 and emergency)
+       or ramp_step_due }}
+  ramp_end: >-
+    {{ ramping
+       and (not ramp_live or is_paused or not charging
+            or (delta <= 0 and car_fresh)
+            or (delta < 0 and do_write)) }}
 
 actions:
   # Keep the confirmation timer in sync with stop_wanted. The
@@ -222,6 +268,13 @@ actions:
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.zaptec_fuse_stop_pending
+  # Before the choose, so a stale flag is cleared before ramp_start
+  # sets it again in the same run, giving it a fresh last_changed.
+  - if: "{{ ramp_end }}"
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.zaptec_fuse_ramping
   - choose:
       # Clear a stale pause flag once the car is unplugged. We do NOT
       # touch the charge current while disconnected (that would
@@ -277,6 +330,9 @@ actions:
           - action: input_boolean.turn_off
             target:
               entity_id: input_boolean.zaptec_fuse_stop_pending
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.zaptec_fuse_ramping
 
       # Normal path: adjust max charge current within the fuse.
       - conditions:
@@ -287,4 +343,9 @@ actions:
             target:
               entity_id: number.zag064494_max_laddstrom
             data:
-              value: "{{ raw_target }}"
+              value: "{{ write_value }}"
+          - if: "{{ ramp_start }}"
+            then:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.zaptec_fuse_ramping
