@@ -373,6 +373,17 @@ phase at about 25.6 A on P1 and cuts the battery within a median 10 s
 only full-power run over the fuse for minutes was our own Forced-mode
 charge.
 
+Data 2026-10-15 to 11-24 with the car charging (#45) agrees. The
+first cut comes 10-45 s after a car start or step, and the phase
+settles within 30-120 s, including overshoot. Single 30 s samples
+peak at 27-33 A. Over this longer window the settled phase is about
+25.7 A. The 1KOMMA5 limit is 25 A, converted to watts at a nominal
+230 V; at the ~226 V measured on site that is about 25.4 A, and the
+rest is its regulation overshoot. That level is
+accepted, so a long run at 25-26 A is the limit at work, not a
+failure to yield. On 2026-11-20 at 04:17 the battery
+alone absorbed a 6 -> 16 A car step.
+
 Fallback: `binary_sensor.p1_sustained_overload` (templates/) turns on
 when the highest raw P1 phase is at or above 27 A for 60 s, meaning
 the battery is not yielding. The guard then counts the battery as
@@ -399,9 +410,6 @@ while P1 still carried the battery's ~14 A per phase, which caused
 the fuse-stops of #44. A held copy keeps the last good value for 2
 failed polls and then goes `unavailable`, which ends the discount as
 before. The dropout figures and timers are in that file.
-
-Check the first nights with the car charging under mode 3/170: the
-data never showed the optimiser absorbing a 6 -> 16 A car step.
 
 ## Entities used
 
