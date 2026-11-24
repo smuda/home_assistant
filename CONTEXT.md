@@ -152,6 +152,12 @@ make room before the next step lands. Only raises are ramped; a cut
 is always immediate.
 _Avoid_: soft start, step-up, slew
 
+**Floor start**:
+Setting the car's charge current to the floor (6 A) once it has
+been unplugged, so the next session starts there and the ramp
+takes it up.
+_Avoid_: soft start, reset, pre-set
+
 **Battery hold**:
 The house battery held idle, neither charging nor discharging, while
 the car charges, the fuse guard holds it paused, or shortly after a

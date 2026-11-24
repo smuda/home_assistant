@@ -7,6 +7,7 @@ requirements-dev.txt.
 """
 
 import datetime as dt
+import math
 from pathlib import Path
 
 import yaml
@@ -85,7 +86,17 @@ def make_env(entities, now=NOW):
     env.filters["timestamp_custom"] = lambda ts, fmt, local=True: (
         dt.datetime.fromtimestamp(float(ts), dt.timezone.utc).strftime(fmt)
     )
+    env.filters["is_number"] = _is_number
     return env
+
+
+def _is_number(value):
+    # Like Home Assistant's is_number: a finite float, so "unavailable",
+    # "unknown", nan and inf are all not numbers.
+    try:
+        return math.isfinite(float(value))
+    except (ValueError, TypeError):
+        return False
 
 
 def load_yaml(path):
