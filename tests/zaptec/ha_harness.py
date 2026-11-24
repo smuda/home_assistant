@@ -8,6 +8,7 @@ requirements-dev.txt.
 
 import datetime as dt
 import math
+import numbers
 from pathlib import Path
 
 import yaml
@@ -87,6 +88,8 @@ def make_env(entities, now=NOW):
         dt.datetime.fromtimestamp(float(ts), dt.timezone.utc).strftime(fmt)
     )
     env.filters["is_number"] = _is_number
+    env.filters["bool"] = _bool
+    env.filters["as_local"] = _as_local
     return env
 
 
@@ -97,6 +100,38 @@ def _is_number(value):
         return math.isfinite(float(value))
     except (ValueError, TypeError):
         return False
+
+
+_NO_DEFAULT = object()
+
+
+def _bool(value, default=_NO_DEFAULT):
+    # Like Home Assistant's bool filter (forgiving_boolean): the usual
+    # truthy/falsy words and numbers convert, anything else returns the
+    # default, or raises when none was given.
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        text = value.lower().strip()
+        if text in ("1", "true", "yes", "on", "enable"):
+            return True
+        if text in ("0", "false", "no", "off", "disable"):
+            return False
+    elif isinstance(value, numbers.Number):
+        return value != 0
+    if default is _NO_DEFAULT:
+        raise ValueError(
+            f"bool got invalid input {value!r} and no default was specified"
+        )
+    return default
+
+
+def _as_local(value):
+    # Like Home Assistant's as_local, with local = UTC as for
+    # timestamp_custom above: a naive datetime is taken to be local.
+    if value.tzinfo is None:
+        return value.replace(tzinfo=dt.timezone.utc)
+    return value.astimezone(dt.timezone.utc)
 
 
 def load_yaml(path):
