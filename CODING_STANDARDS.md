@@ -39,3 +39,20 @@ that referenced the old id keeps reading an entity that no longer
 updates, with no error raised. That is exactly the silent, lasting
 failure `CLAUDE.md` tells us to guard against. A test that pins the id
 turns that silent break into a loud one at review time.
+
+## A write's condition stays false on a degraded input
+
+A write's condition stays false when an input it reads is `unknown`,
+`unavailable` or missing. The usual way to meet this is an explicit
+`|is_number` check on the raw state in the write's condition, as the
+fuse guard already does for the charger's max current.
+
+Why: a numeric default such as `|int(0)` or `|float(0)` makes an
+outage look like a real reading, so the condition can pass on data
+that does not exist. In a level-triggered automation (a `time_pattern`
+trigger) the resulting write repeats on every run, so one bad default
+becomes a stream of writes. Sometimes the default is the safe side on
+purpose: the fuse guard's `failsafe_other` assumes a heavy other-phase
+load when the P1 meter is dead, so the car floors to its minimum
+current. Weigh which side a default falls on rather than banning
+defaults.
