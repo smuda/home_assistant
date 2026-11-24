@@ -24,6 +24,8 @@ import datetime as dt
 import re
 import unittest
 
+from jinja2 import TemplateError
+
 from ha_harness import NOW, PAUSED, RAMPING, Entity, load_yaml
 from test_dynamic_fuse_protection import AUTOMATION
 from test_fuse_floor_start import STATUS, table
@@ -133,7 +135,9 @@ class TestOneDegradedInput(DegradedInputsBase):
         try:
             calls = self.run_guard(entities)
         except Exception as err:
-            if (eid, how) in EXCLUDED:
+            # An exclusion covers a template error only, not a harness
+            # or other failure.
+            if (eid, how) in EXCLUDED and isinstance(err, TemplateError):
                 return
             self.fail(f"template error: {type(err).__name__}: {err}")
         if (eid, how) in EXCLUDED:
