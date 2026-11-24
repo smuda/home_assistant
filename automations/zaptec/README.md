@@ -225,7 +225,9 @@ to the car's 6-16 A window -> `raw_target`.
 
 Each evaluation picks one action, in priority order:
 
-1. Clear the pause helper if the car is unplugged while paused.
+1. Clear the pause helper if the car is unplugged while paused, and
+   Floor start once it has been unplugged for `floor_start_delay`
+   (60 s).
 2. Clear the pause helper (and nothing else) if we are paused and
    the car is charging again, with `laddstatus` changed after the
    helper (resumed from outside HA).
@@ -245,14 +247,18 @@ Each evaluation picks one action, in priority order:
    above the current (ramp step: write
    `min(raw_target, current + ramp_step)`, no deadband or
    `min_interval`). See "Ramp".
+6. Floor start: write `ev_min` if not paused, `laddstatus` has read
+   `disconnected` for `floor_start_delay` (60 s) and
+   `max_laddstrom` is not already 6 A. See "Do not disturb Eco
+   Mode".
 
 Evaluated once a minute, on charge-status changes, immediately
 when a phase crosses 23 A, or when
 `binary_sensor.p1_sustained_overload` turns on. It runs only while
-actually charging (`connected_charging`) or while the fuse-pause
-helper is on (so
-resume can be evaluated) -- never while disconnected or merely
-`connected_requesting` (see Eco Mode below).
+actually charging (`connected_charging`), while the fuse-pause
+helper is on (so resume can be evaluated), while a stop is pending,
+or while disconnected with `max_laddstrom` not at 6 A (Floor start)
+-- never while `connected_requesting` (see Eco Mode below).
 
 ### Do not disturb Eco Mode
 
@@ -269,19 +275,37 @@ cannot be active at the same time
 ([Futurehome's Zaptec integration
 docs](https://support.futurehome.no/hc/en-no/articles/360055610911-Zaptec)).
 Eco Mode is what delays charging to the cheap night hours. If a
-write while the car is disconnected or waiting does suspend Eco, the
-next plug-in charges immediately at the wrong (expensive) time, so
-the automation is written as if it does.
+write while the car is waiting suspends Eco, the session charges
+immediately at the wrong (expensive) time, so the automation is
+written as if it does.
 
-So the automation only ever touches the charger while a charge is
-already under way (`connected_charging`). It leaves the charger
-completely alone while disconnected or `connected_requesting`, so
-Eco Mode keeps full control over *when* to charge; this automation
-only limits the current *once Eco has started a session*. There is
-no installation-level `AvailableCurrent` entity available on this
-account (charger-level permissions only), so `max_laddstrom` is the
-only lever -- hence the strict "charging-only" gate rather than a
-gentler one.
+One test says a write while disconnected is harmless. On 2026-11-21
+`max_laddstrom` was set 16 -> 6 A over the HA REST API with the car
+disconnected. At the next plug-in the car waited about 6 h in
+`connected_requesting` for Eco Mode and started at about 6 A (about
+4 kW). A write while disconnected did not suspend Eco that time; it
+is a single data point.
+
+So the automation writes while a charge is under way
+(`connected_charging`), plus the Floor start while disconnected. It
+never writes while `connected_requesting`, so Eco Mode keeps full
+control over when to charge; this automation limits the current
+once Eco has started a session.
+
+Floor start: once the car has been unplugged for `floor_start_delay`
+(60 s), the automation sets `max_laddstrom` to `ev_min` (6 A). Every
+session then starts at 6 A and the Ramp takes it up, instead of the
+car drawing the stored max until the first in-session evaluation.
+The delay skips the few-second `disconnected` blips seen at plug-in,
+just before `connected_requesting`. The check is level-triggered by
+the once-a-minute trigger, so a failed write is retried and a change
+to `max_laddstrom` while unplugged is undone within a minute. It
+also needs `max_laddstrom` to hold a number: an unavailable entity
+would read as 0 A and make the guard write every minute.
+
+There is no installation-level `AvailableCurrent` entity available
+on this account (charger-level permissions only), so
+`max_laddstrom` is the only lever.
 
 ### Noise filtering (avoids false stops)
 
@@ -663,6 +687,8 @@ Edit the `variables` block in `Dynamic_fuse_protection.yaml`:
 - `nominal_v` -- volts used to turn battery watts into per-phase
   amps. 230.
 - `ev_min` / `ev_max` -- 6 and 16 (do not exceed the installer cap).
+- `floor_start_delay` -- seconds `laddstatus` must read
+  `disconnected` before Floor start writes `ev_min`. 60.
 
 The moving-average `window_size` for the noise filter lives in
 `sensors/p1_filtered_sensors.yaml`, not here.
@@ -694,12 +720,13 @@ The battery hold has its own `variables` block in
   brief overcurrent (its time-current curve) and the margin absorbs
   the rest, while the gain is immunity to false stops.
 - Eco Mode coexistence. Because writing the charge current is
-  observed to suspend Eco Mode, the automation acts only while
-  `connected_charging` and never pre-empts a waiting session. The
-  trade-off: it cannot soft-start the car at 6 A before a session,
-  so a charge may briefly draw the stored max for the few seconds
-  until the first in-session evaluation. That is acceptable; keeping
-  Eco's cheap-hour scheduling intact matters more.
+  observed to suspend Eco Mode, the automation never writes while
+  `connected_requesting` and never pre-empts a waiting session.
+  Floor start sets 6 A while the car is unplugged, so every session
+  starts low. The 2026-11-21 test (see "Do not disturb Eco Mode")
+  showed no Eco suspension from a write while disconnected, but it
+  is a single data point. If a later session charges at plug-in
+  instead of waiting, Floor start is the suspect.
 - Mode is not visible in HA. The integration exposes no entity
   for the available-current mode or Eco Mode (custom-components/zaptec
   [issue #153](https://github.com/custom-components/zaptec/issues/153)),

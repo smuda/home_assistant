@@ -13,13 +13,15 @@
 # Raises larger than ramp_step go in ramp_step steps ramp_interval
 # apart (a ramp), the one exception to the 15-min rule. See
 # README.md, "Ramp".
-# IMPORTANT: only acts while actually charging (connected_charging).
-# It never writes the charge current while the car is disconnected or
-# merely waiting (connected_requesting), because writing the charger
-# current overrides Zaptec's load balancer and suspends Eco Mode -
-# touching it while Eco is waiting makes the car charge immediately
-# instead of at the cheap night hours. Let Eco decide WHEN; this only
-# limits the current once a charge is under way.
+# IMPORTANT: writes the charge current only while actually charging
+# (connected_charging), plus the Floor start while disconnected (see
+# README.md, "Do not disturb Eco Mode"). It never writes while merely
+# waiting (connected_requesting), because writing the charger current
+# overrides Zaptec's load balancer and is assumed to suspend Eco Mode
+# - touching it while Eco is waiting makes the car charge immediately
+# instead of at the cheap night hours. Eco decides WHEN; the guard
+# limits the current once a charge is under way and otherwise only
+# sets the Floor start while unplugged.
 # Ignores the house battery's grid charge while the optimiser yields
 # to the fuse, and counts it as load again on a sustained P1
 # overload. Reads the EMS mode and command from the held copies in
@@ -40,7 +42,8 @@ description: >-
   would still breach the fuse does it stop the car, resuming
   automatically once household load falls. A stop needs the
   must-stop condition to hold for stop_confirm (see README.md); the
-  emergency cut does not wait. Acts only while charging so it does
+  emergency cut does not wait. Writes while charging, plus a Floor
+  start (6 A) once unplugged; never while the car waits, so it does
   not disturb Zaptec Eco Mode scheduling. Ignores the battery's grid
   charge while the 1KOMMA5 optimiser is in control and yielding;
   counts it as household load again on a sustained P1 overload. A
@@ -80,11 +83,12 @@ triggers:
 conditions:
   # Run only while actually charging, or while we hold a fuse-pause
   # (so we can evaluate resume), or while a stop is pending (so a run
-  # after charging ended still clears the timer). Never while
-  # disconnected or merely requesting - touching the charger then
-  # would suspend Eco Mode.
+  # after charging ended still clears the timer), or while
+  # disconnected with max_laddstrom not at ev_min (Floor start). Never
+  # while connected_requesting - touching the charger then would
+  # suspend Eco Mode.
   - condition: template
-    value_template: "{{ charging or is_paused or stop_pending }}"
+    value_template: "{{ charging or is_paused or stop_pending or floor_wanted }}"
 
 variables:
   fuse: 25  # main fuse, amps per phase
@@ -99,6 +103,7 @@ variables:
   restop_lockout: 30  # min seconds after a resume before another stop is allowed
   stop_confirm: 20  # s must_stop must hold before a last-resort stop
   ev_min: 6  # Zaptec Go minimum charge current
+  floor_start_delay: 60  # s disconnected before the Floor start write
   ev_max: 16  # installer hardware cap
   max_age: 60  # P1 data older than this (s) is treated as a dropout
   failsafe_other: 18  # assumed other-phase load (A) when P1 is dead
@@ -165,6 +170,15 @@ variables:
   ptot_max: "{{ [ o1 + c1, o2 + c2, o3 + c3 ]|max }}"
   emergency: "{{ ptot_max >= emergency_phase }}"
   status: "{{ states('sensor.zag064494_laddstatus') }}"
+  # Floor start, see README.md, "Do not disturb Eco Mode".
+  floor_wanted: >-
+    {{ status == 'disconnected'
+       and states('number.zag064494_max_laddstrom')|is_number
+       and current_max != ev_min }}
+  secs_disconnected: >-
+    {{ (now() - states.sensor.zag064494_laddstatus.last_changed)
+       .total_seconds() if status == 'disconnected' else 0 }}
+  floor_start_due: "{{ floor_wanted and secs_disconnected >= floor_start_delay }}"
   is_paused: "{{ is_state('input_boolean.zaptec_fuse_paused', 'on') }}"
   # input_boolean flips on=stop / off=resume, so its last_changed IS the
   # timestamp of the last stop/resume. When paused this is time-in-pause;
@@ -178,7 +192,7 @@ variables:
   secs_pending: >-
     {{ (now() - states.input_boolean.zaptec_fuse_stop_pending.last_changed)
        .total_seconds() if stop_pending else 0 }}
-  # Only "actually charging" - NOT connected_requesting. Acting during
+  # Only "actually charging" - NOT connected_requesting. Writing during
   # requesting (Eco waiting) would suspend Eco and start charging now.
   charging: "{{ status == 'connected_charging' }}"
   # Ramp state, see README.md, "Ramp". `and` short-circuits, so the
@@ -276,9 +290,9 @@ actions:
         target:
           entity_id: input_boolean.zaptec_fuse_ramping
   - choose:
-      # Clear a stale pause flag once the car is unplugged. We do NOT
-      # touch the charge current while disconnected (that would
-      # suspend Eco Mode for the next session).
+      # Unplugged while paused: clear the stale pause flag at once,
+      # and Floor start if it is due. Before the delay, the Floor
+      # start branch below writes on a later run.
       - conditions:
           - condition: template
             value_template: "{{ is_paused and status == 'disconnected' }}"
@@ -286,6 +300,13 @@ actions:
           - action: input_boolean.turn_off
             target:
               entity_id: input_boolean.zaptec_fuse_paused
+          - if: "{{ floor_start_due }}"
+            then:
+              - action: number.set_value
+                target:
+                  entity_id: number.zag064494_max_laddstrom
+                data:
+                  value: "{{ ev_min }}"
 
       # Resumed outside HA: clear the flag only. See README.md,
       # "Resumed outside HA".
@@ -349,3 +370,14 @@ actions:
               - action: input_boolean.turn_on
                 target:
                   entity_id: input_boolean.zaptec_fuse_ramping
+
+      # Floor start, see README.md, "Do not disturb Eco Mode".
+      - conditions:
+          - condition: template
+            value_template: "{{ not is_paused and floor_start_due }}"
+        sequence:
+          - action: number.set_value
+            target:
+              entity_id: number.zag064494_max_laddstrom
+            data:
+              value: "{{ ev_min }}"
