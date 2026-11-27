@@ -127,6 +127,17 @@ Home Assistant's own short-lived history. The only second copy of
 recent buckets, and it expires.
 _Avoid_: database, local history
 
+**State change / report**:
+A state change is a write Home Assistant records as new: the value
+differs, only the attributes differ, or the entity sets
+`force_update`. It fires `state_changed` and moves `last_updated`;
+`last_changed` moves only when the value differs or on
+`force_update`. A report is a write of the same value and
+attributes; it fires `state_reported` and moves only
+`last_reported`. The `filter` platform reacts to state changes only.
+Source: Home Assistant docs, "State objects"; `filter/sensor.py`.
+_Avoid_: update
+
 **Unknown Usage**:
 Consumption seen at the meter that no monitored device accounts for.
 A real bucket of load, not an error.
