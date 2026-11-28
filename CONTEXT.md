@@ -150,6 +150,13 @@ The protection that holds total current under the main fuse when the
 car charges alongside other heavy loads.
 _Avoid_: load balancing, current limiter
 
+**Household load**:
+The current on a phase that the car is not drawing, leaving out the
+battery's grid charge while the optimiser yields to the fuse. The
+fuse guard gives the car whatever room the household load leaves
+under the fuse.
+_Avoid_: other load, non-car load
+
 **Last-resort stop**:
 Stopping the car outright, chosen when holding it at the floor
 current would no longer keep the phase under the fuse, and only once
